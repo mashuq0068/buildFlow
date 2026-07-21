@@ -1,0 +1,46 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { Inter } from "next/font/google";
+import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AuthGuard } from "@/components/auth/auth-guard";
+import { IssueDetailPanel } from "@/components/issue-detail/issue-detail-panel";
+import { NewIssueModal } from "@/components/new-issue/new-issue-modal";
+import { NewProjectModal } from "@/components/projects/new-project-modal";
+import { CommandPalette } from "@/components/command-palette/command-palette";
+import { GlobalShortcuts } from "@/components/global-shortcuts";
+import "./globals.css";
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Linear Clone",
+  description: "A project management app inspired by Linear.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+      <body className="min-h-full flex flex-col bg-bg text-fg font-sans">
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+          <Suspense fallback={null}>
+            <AuthGuard>{children}</AuthGuard>
+          </Suspense>
+          <IssueDetailPanel />
+          <NewIssueModal />
+          <NewProjectModal />
+          <CommandPalette />
+          <GlobalShortcuts />
+          <Toaster richColors position="bottom-right" />
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
