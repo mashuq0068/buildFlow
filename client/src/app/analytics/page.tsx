@@ -9,7 +9,13 @@ import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { useMembersStore } from "@/lib/stores/members-store";
-import { PRIORITY_LABEL, STATUS_COLUMNS, type Issue, type IssuePriority } from "@/lib/types";
+import {
+  PRIORITY_LABEL,
+  CATEGORY_ORDER,
+  CATEGORY_LABEL,
+  type Issue,
+  type IssuePriority,
+} from "@/lib/types";
 
 const PRIORITY_COLORS: Record<IssuePriority, string> = {
   urgent: "#e5484d",
@@ -19,17 +25,17 @@ const PRIORITY_COLORS: Record<IssuePriority, string> = {
   no_priority: "var(--border-strong)",
 };
 
-const STATUS_COLORS: Record<string, string> = {
+const CATEGORY_CHART_COLORS: Record<string, string> = {
   backlog: "var(--fg-tertiary)",
-  todo: "var(--fg-secondary)",
-  in_progress: "#e8a53f",
-  in_review: "#5e9bd6",
-  done: "#4cb782",
+  unstarted: "var(--fg-secondary)",
+  started: "#e8a53f",
+  completed: "#4cb782",
+  canceled: "var(--border-strong)",
 };
 
 function personStats(issues: Issue[], personId: string) {
   const owned = issues.filter((i) => i.assignee?.id === personId);
-  const done = owned.filter((i) => i.status === "done").length;
+  const done = owned.filter((i) => i.status.category === "completed").length;
   return { total: owned.length, done };
 }
 
@@ -42,8 +48,8 @@ export default function AnalyticsPage() {
   const members = useMembersStore((s) => s.members);
 
   const myIssues = issues.filter((i) => i.assignee?.id === currentUser?.id);
-  const myDone = myIssues.filter((i) => i.status === "done").length;
-  const myInProgress = myIssues.filter((i) => i.status === "in_progress").length;
+  const myDone = myIssues.filter((i) => i.status.category === "completed").length;
+  const myInProgress = myIssues.filter((i) => i.status.category === "started").length;
 
   const priorities: IssuePriority[] = ["urgent", "high", "medium", "low", "no_priority"];
   const priorityData = priorities.map((p) => ({
@@ -52,10 +58,10 @@ export default function AnalyticsPage() {
     color: PRIORITY_COLORS[p],
   }));
 
-  const statusData = STATUS_COLUMNS.map((c) => ({
-    label: c.label,
-    value: myIssues.filter((i) => i.status === c.id).length,
-    color: STATUS_COLORS[c.id],
+  const statusData = CATEGORY_ORDER.map((category) => ({
+    label: CATEGORY_LABEL[category],
+    value: myIssues.filter((i) => i.status.category === category).length,
+    color: CATEGORY_CHART_COLORS[category],
   }));
 
   const teamRows = members.map((person) => ({

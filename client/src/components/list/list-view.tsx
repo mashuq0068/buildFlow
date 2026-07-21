@@ -1,18 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { STATUS_COLUMNS, type Issue } from "@/lib/types";
+import type { Issue, Person } from "@/lib/types";
+import type { BoardColumn } from "@/components/board/kanban-board";
 import { IssueRow } from "./issue-row";
+import { BulkActionBar } from "./bulk-action-bar";
 import { cn } from "@/lib/utils";
 
-export function ListView({ issues }: { issues: Issue[] }) {
+export function ListView({
+  issues,
+  columns,
+  getColumnId,
+  selectable = false,
+  members = [],
+}: {
+  issues: Issue[];
+  columns: BoardColumn[];
+  getColumnId: (issue: Issue) => string;
+  selectable?: boolean;
+  members?: Person[];
+}) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const validIds = useMemo(() => new Set(issues.map((i) => i.id)), [issues]);
+  const selectedIds = useMemo(
+    () => Array.from(selected).filter((id) => validIds.has(id)),
+    [selected, validIds]
+  );
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      {STATUS_COLUMNS.map((column) => {
-        const columnIssues = issues.filter((i) => i.status === column.id);
+    <div className="flex flex-1 flex-col overflow-hidden">
+      {selectable && selectedIds.length > 0 && (
+        <BulkActionBar
+          selectedIds={selectedIds}
+          columns={columns}
+          members={members}
+          onClear={() => setSelected(new Set())}
+        />
+      )}
+      <div className="flex-1 overflow-y-auto">
+      {columns.map((column) => {
+        const columnIssues = issues.filter((i) => getColumnId(i) === column.id);
         const isCollapsed = collapsed[column.id];
 
         return (
@@ -26,14 +65,26 @@ export function ListView({ issues }: { issues: Issue[] }) {
                 size={13}
                 className={cn("transition-transform", isCollapsed && "-rotate-90")}
               />
+              {column.color && (
+                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column.color }} />
+              )}
               <span>{column.label}</span>
               <span className="text-fg-secondary">{columnIssues.length}</span>
             </button>
             {!isCollapsed &&
-              columnIssues.map((issue) => <IssueRow key={issue.id} issue={issue} />)}
+              columnIssues.map((issue) => (
+                <IssueRow
+                  key={issue.id}
+                  issue={issue}
+                  selectable={selectable}
+                  selected={selected.has(issue.id)}
+                  onToggleSelect={() => toggle(issue.id)}
+                />
+              ))}
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

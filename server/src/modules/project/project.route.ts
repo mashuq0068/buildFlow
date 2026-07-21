@@ -4,6 +4,7 @@ import { validateRequest } from "../../middlewares/validateRequest";
 import { projectValidation } from "./project.validation";
 import { requireAuth } from "../../middlewares/requireAuth";
 import { projectChatRoutes } from "../project-chat/project-chat.route";
+import { issueStatusRoutes } from "../issue-status/issue-status.route";
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router.post(
 );
 router.delete("/:id/members/:userId", projectController.removeMember);
 router.use("/:id/chat", projectChatRoutes);
+router.use("/:id/statuses", issueStatusRoutes);
 
 export const projectRoutes = router;

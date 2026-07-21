@@ -6,6 +6,7 @@ import {
 } from "../../lib/authz";
 import { HttpError } from "../../lib/http-error";
 import { safeUserSelect } from "../../lib/user-select";
+import { DEFAULT_STATUS_TEMPLATE } from "../../lib/default-statuses";
 import { ICreateProject, IUpdateProject } from "./project.interface";
 
 const memberInclude = {
@@ -31,6 +32,9 @@ async function createProject(userId: string, payload: ICreateProject) {
       workspaceId: payload.workspaceId,
       leadId: payload.leadId,
       members: { create: Array.from(memberIds).map((uid) => ({ userId: uid })) },
+      statusOptions: {
+        create: DEFAULT_STATUS_TEMPLATE.map((s, index) => ({ ...s, position: index })),
+      },
     },
     include: memberInclude,
   });

@@ -10,6 +10,8 @@ import { draftRoutes } from "../modules/draft/draft.route";
 import { notificationRoutes } from "../modules/notification/notification.route";
 import { activityRoutes } from "../modules/activity/activity.route";
 import { favoriteListRoutes } from "../modules/favorite/favorite.route";
+import { uploadRoutes } from "../modules/upload/upload.route";
+import { invitePublicRoutes } from "../modules/invite/invite.route";
 
 const router = Router();
 
@@ -24,5 +26,7 @@ router.use("/drafts", draftRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/activity", activityRoutes);
 router.use("/favorites", favoriteListRoutes);
+router.use("/uploads", uploadRoutes);
+router.use("/invites", invitePublicRoutes);
 
 export default router;

@@ -2,19 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Paperclip, Sparkles, MessageSquare, History as HistoryIcon, Star } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import {
+  X,
+  Paperclip,
+  Sparkles,
+  MessageSquare,
+  History as HistoryIcon,
+  Star,
+  MoreHorizontal,
+  Copy,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useMembersStore } from "@/lib/stores/members-store";
+import { useCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api-client";
-import { STATUS_COLUMNS, PRIORITY_LABEL, type IssuePriority, type IssueStatus } from "@/lib/types";
-import { CommentThread } from "./comment-thread";
+import { confirmAction } from "@/lib/stores/confirm-store";
+import { PRIORITY_LABEL, type IssuePriority } from "@/lib/types";
+import { DiscussionThread } from "@/components/discussion/discussion-thread";
 import { ActivityTab } from "./activity-tab";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { useProjectStatusColumns } from "@/lib/hooks/use-project-status-columns";
 import { cn } from "@/lib/utils";
 
 const PRIORITIES: IssuePriority[] = ["no_priority", "low", "medium", "high", "urgent"];
+const EMPTY_COMMENTS: never[] = [];
 
 export function IssueDetailPanel() {
   const selectedIssueId = useUIStore((s) => s.selectedIssueId);
@@ -23,10 +40,19 @@ export function IssueDetailPanel() {
   const moveIssue = useIssuesStore((s) => s.moveIssue);
   const updateIssue = useIssuesStore((s) => s.updateIssue);
   const loadIssueDetail = useIssuesStore((s) => s.loadIssueDetail);
-  const commentCount = useIssuesStore((s) => s.comments[selectedIssueId ?? ""]?.length ?? 0);
+  const comments = useIssuesStore((s) => s.comments[selectedIssueId ?? ""] ?? EMPTY_COMMENTS);
+  const addComment = useIssuesStore((s) => s.addComment);
+  const updateComment = useIssuesStore((s) => s.updateComment);
+  const deleteComment = useIssuesStore((s) => s.deleteComment);
+  const toggleCommentReaction = useIssuesStore((s) => s.toggleCommentReaction);
   const isFavorite = useIssuesStore((s) => s.favoriteIds.includes(selectedIssueId ?? ""));
   const toggleFavorite = useIssuesStore((s) => s.toggleFavorite);
+  const deleteIssue = useIssuesStore((s) => s.deleteIssue);
+  const archiveIssue = useIssuesStore((s) => s.archiveIssue);
+  const duplicateIssue = useIssuesStore((s) => s.duplicateIssue);
   const members = useMembersStore((s) => s.members);
+  const currentUser = useCurrentUser();
+  const statusColumns = useProjectStatusColumns(issue?.projectId);
 
   const [tab, setTab] = useState<"comments" | "activity">("comments");
 
@@ -53,13 +79,61 @@ export function IssueDetailPanel() {
     }
   }
 
-  async function handleMove(status: IssueStatus) {
+  async function handleMove(statusId: string) {
     if (!issue) return;
     try {
-      await moveIssue(issue.id, status);
+      await moveIssue(issue.id, statusId);
       loadIssueDetail(issue.id).catch(() => {});
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to move issue");
+    }
+  }
+
+  async function handleDuplicate() {
+    if (!issue) return;
+    try {
+      const copy = await duplicateIssue(issue.id);
+      toast.success(`Duplicated as ${copy.identifier}`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to duplicate issue");
+    }
+  }
+
+  async function handleArchiveToggle() {
+    if (!issue) return;
+    const archiving = !issue.archived;
+    if (archiving) {
+      const ok = await confirmAction({
+        title: `Archive ${issue.identifier}?`,
+        description: "Archived issues are hidden from boards and lists. You can restore it later.",
+        confirmLabel: "Archive",
+      });
+      if (!ok) return;
+    }
+    try {
+      await archiveIssue(issue.id, archiving);
+      toast.success(archiving ? "Issue archived" : "Issue restored");
+      if (archiving) closeIssue();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update issue");
+    }
+  }
+
+  async function handleDelete() {
+    if (!issue) return;
+    const ok = await confirmAction({
+      title: `Delete ${issue.identifier}?`,
+      description: "This issue and all its comments and activity will be permanently deleted.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteIssue(issue.id);
+      toast.success("Issue deleted");
+      closeIssue();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete issue");
     }
   }
 
@@ -82,7 +156,7 @@ export function IssueDetailPanel() {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 32, stiffness: 320 }}
-            className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-border bg-bg sm:max-w-lg"
+            className="fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-border bg-bg sm:max-w-2xl"
           >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <span className="text-xs font-medium text-fg-secondary">{issue.identifier}</span>
@@ -98,6 +172,45 @@ export function IssueDetailPanel() {
                 >
                   <Star size={15} fill={isFavorite ? "currentColor" : "none"} />
                 </button>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild>
+                    <button
+                      type="button"
+                      aria-label="More actions"
+                      className="rounded-md p-1 text-fg-tertiary transition-colors hover:bg-surface-hover hover:text-fg"
+                    >
+                      <MoreHorizontal size={16} />
+                    </button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content
+                      align="end"
+                      sideOffset={6}
+                      className="z-50 w-44 overflow-hidden rounded-md border border-border bg-bg p-1 shadow-[0_8px_24px_rgba(0,0,0,0.25)]"
+                    >
+                      <DropdownMenu.Item
+                        onSelect={handleDuplicate}
+                        className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-fg outline-none data-[highlighted]:bg-surface-hover"
+                      >
+                        <Copy size={13} /> Duplicate
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        onSelect={handleArchiveToggle}
+                        className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-fg outline-none data-[highlighted]:bg-surface-hover"
+                      >
+                        {issue.archived ? <ArchiveRestore size={13} /> : <Archive size={13} />}
+                        {issue.archived ? "Restore from archive" : "Archive"}
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                      <DropdownMenu.Item
+                        onSelect={handleDelete}
+                        className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-[#e5484d] outline-none data-[highlighted]:bg-[#e5484d]/10"
+                      >
+                        <Trash2 size={13} /> Delete
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
                 <button
                   type="button"
                   onClick={closeIssue}
@@ -121,7 +234,8 @@ export function IssueDetailPanel() {
                 onChange={(html) => handleUpdate({ description: html })}
                 placeholder="Add a description..."
                 className="mt-4"
-                minHeight={60}
+                minHeight={120}
+                fullFeatured
               />
 
               {issue.aiSuggested && (
@@ -141,11 +255,11 @@ export function IssueDetailPanel() {
               <div className="mt-4 flex flex-col gap-3 rounded-md border border-border p-3">
                 <PropertyRow label="Status">
                   <select
-                    value={issue.status}
-                    onChange={(e) => handleMove(e.target.value as IssueStatus)}
+                    value={issue.status.id}
+                    onChange={(e) => handleMove(e.target.value)}
                     className="rounded border border-border bg-surface px-2 py-1 text-xs text-fg outline-none"
                   >
-                    {STATUS_COLUMNS.map((c) => (
+                    {statusColumns.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.label}
                       </option>
@@ -224,7 +338,7 @@ export function IssueDetailPanel() {
                   active={tab === "comments"}
                   onClick={() => setTab("comments")}
                   icon={MessageSquare}
-                  label={`Chat${commentCount ? ` (${commentCount})` : ""}`}
+                  label={`Comments${comments.length ? ` (${comments.length})` : ""}`}
                 />
                 <TabButton
                   active={tab === "activity"}
@@ -236,7 +350,20 @@ export function IssueDetailPanel() {
 
               <div className="pt-4">
                 {tab === "comments" ? (
-                  <CommentThread issueId={issue.id} />
+                  <DiscussionThread
+                    items={comments}
+                    currentUserId={currentUser?.id}
+                    onSubmit={(body, parentId, attachments) =>
+                      addComment(issue.id, body, parentId, attachments)
+                    }
+                    onEdit={(commentId, body) => updateComment(issue.id, commentId, body)}
+                    onDelete={(commentId) => deleteComment(issue.id, commentId)}
+                    onToggleReaction={(commentId, emoji) =>
+                      toggleCommentReaction(issue.id, commentId, emoji)
+                    }
+                    emptyMessage="No comments yet — start the conversation."
+                    placeholder="Leave a comment... use @ to mention someone"
+                  />
                 ) : (
                   <ActivityTab issueId={issue.id} />
                 )}

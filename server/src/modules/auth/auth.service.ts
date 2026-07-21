@@ -9,16 +9,8 @@ import {
 } from "../../lib/jwt";
 import { HttpError } from "../../lib/http-error";
 import { safeUserSelect } from "../../lib/user-select";
+import { initialsFor } from "../../lib/initials";
 import type { IRegisterInput, ILoginInput } from "./auth.interface";
-
-function initialsFor(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
-}
 
 async function issueTokens(user: { id: string; email: string; name: string }) {
   const accessToken = signAccessToken({ sub: user.id, email: user.email, name: user.name });

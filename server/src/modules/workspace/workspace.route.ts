@@ -4,6 +4,7 @@ import { validateRequest } from "../../middlewares/validateRequest";
 import { workspaceValidation } from "./workspace.validation";
 import { requireAuth } from "../../middlewares/requireAuth";
 import { userRoutes } from "../user/user.route";
+import { inviteManagementRoutes } from "../invite/invite.route";
 
 const router = Router();
 
@@ -15,5 +16,6 @@ router.get("/:id", workspaceController.getById);
 router.patch("/:id", validateRequest(workspaceValidation.update), workspaceController.update);
 router.delete("/:id", workspaceController.remove);
 router.use("/:workspaceId/members", userRoutes);
+router.use("/:workspaceId/invites", inviteManagementRoutes);
 
 export const workspaceRoutes = router;

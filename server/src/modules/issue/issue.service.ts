@@ -4,16 +4,6 @@ import { notificationService } from "../notification/notification.service";
 import { HttpError } from "../../lib/http-error";
 import { safeUserSelect } from "../../lib/user-select";
 import type { ICreateIssue, IUpdateIssue, ILabelInput } from "./issue.interface";
-import type { IssueStatus } from "@prisma/client";
-
-const STATUS_LABEL: Record<string, string> = {
-  BACKLOG: "Backlog",
-  TODO: "Todo",
-  IN_PROGRESS: "In Progress",
-  IN_REVIEW: "In Review",
-  DONE: "Done",
-  CANCELED: "Canceled",
-};
 
 const projectSelect = {
   select: { id: true, name: true, teamKey: true, color: true },
@@ -23,6 +13,7 @@ const detailInclude = {
   assignee: { select: safeUserSelect },
   creator: { select: safeUserSelect },
   project: projectSelect,
+  status: true,
   labels: { include: { label: true } },
   attachments: true,
   comments: {
@@ -40,6 +31,7 @@ const listInclude = {
   assignee: { select: safeUserSelect },
   creator: { select: safeUserSelect },
   project: projectSelect,
+  status: true,
   labels: { include: { label: true } },
   attachments: true,
 };
@@ -57,6 +49,25 @@ async function resolveLabelIds(workspaceId: string, labels: ILabelInput[]) {
     ids.push(row.id);
   }
   return ids;
+}
+
+async function resolveStatusId(projectId: string, statusId: string | undefined) {
+  if (statusId) {
+    const status = await prisma.issueStatusOption.findUniqueOrThrow({ where: { id: statusId } });
+    if (status.projectId !== projectId) {
+      throw new HttpError(400, "Status does not belong to this project");
+    }
+    return status;
+  }
+  const defaultStatus = await prisma.issueStatusOption.findFirst({
+    where: { projectId, isDefault: true },
+    orderBy: { position: "asc" },
+  });
+  if (defaultStatus) return defaultStatus;
+  return prisma.issueStatusOption.findFirstOrThrow({
+    where: { projectId },
+    orderBy: { position: "asc" },
+  });
 }
 
 async function nextIdentifier(projectId: string) {
@@ -84,15 +95,17 @@ async function createIssue(userId: string, payload: ICreateIssue) {
   const labelIds = payload.labels
     ? await resolveLabelIds(project.workspaceId, payload.labels)
     : [];
-  const status = payload.status ?? "BACKLOG";
-  const position = await prisma.issue.count({ where: { projectId: payload.projectId, status } });
+  const status = await resolveStatusId(payload.projectId, payload.statusId);
+  const position = await prisma.issue.count({
+    where: { projectId: payload.projectId, statusId: status.id },
+  });
 
   const issue = await prisma.issue.create({
     data: {
       identifier,
       title: payload.title,
       description: payload.description,
-      status,
+      statusId: status.id,
       priority: payload.priority,
       position,
       projectId: payload.projectId,
@@ -121,10 +134,10 @@ async function createIssue(userId: string, payload: ICreateIssue) {
   return issue;
 }
 
-async function getIssuesByProject(userId: string, projectId: string) {
+async function getIssuesByProject(userId: string, projectId: string, includeArchived = false) {
   await requireProjectAccess(userId, projectId);
   return prisma.issue.findMany({
-    where: { projectId },
+    where: { projectId, ...(includeArchived ? {} : { archived: false }) },
     include: listInclude,
     orderBy: listOrderBy,
   });
@@ -132,7 +145,7 @@ async function getIssuesByProject(userId: string, projectId: string) {
 
 async function getIssuesForProjects(projectIds: string[]) {
   return prisma.issue.findMany({
-    where: { projectId: { in: projectIds } },
+    where: { projectId: { in: projectIds }, archived: false },
     include: listInclude,
     orderBy: listOrderBy,
   });
@@ -150,7 +163,7 @@ async function getIssueById(userId: string, id: string) {
 async function updateIssue(userId: string, id: string, payload: IUpdateIssue) {
   const existing = await prisma.issue.findUniqueOrThrow({
     where: { id },
-    include: { project: { select: { teamKey: true } } },
+    include: { project: { select: { teamKey: true } }, status: true },
   });
   await requireProjectAccess(userId, existing.projectId);
 
@@ -162,8 +175,10 @@ async function updateIssue(userId: string, id: string, payload: IUpdateIssue) {
     cycleId: payload.cycleId,
   };
 
-  if (payload.status && payload.status !== existing.status) {
-    data.status = payload.status;
+  let newStatus: { id: string; name: string } | null = null;
+  if (payload.statusId && payload.statusId !== existing.statusId) {
+    newStatus = await resolveStatusId(existing.projectId, payload.statusId);
+    data.statusId = newStatus.id;
   }
 
   if (payload.labels) {
@@ -178,11 +193,11 @@ async function updateIssue(userId: string, id: string, payload: IUpdateIssue) {
 
   const issue = await prisma.issue.update({ where: { id }, data, include: listInclude });
 
-  if (payload.status && payload.status !== existing.status) {
+  if (newStatus) {
     await logActivity(
       id,
       userId,
-      `moved this issue from ${STATUS_LABEL[existing.status]} to ${STATUS_LABEL[payload.status]}`
+      `moved this issue from ${existing.status.name} to ${newStatus.name}`
     );
   }
   if (payload.priority && payload.priority !== existing.priority) {
@@ -213,24 +228,25 @@ async function updateIssue(userId: string, id: string, payload: IUpdateIssue) {
   return issue;
 }
 
-async function updateStatus(userId: string, id: string, status: IssueStatus) {
-  const existing = await prisma.issue.findUniqueOrThrow({ where: { id } });
+async function updateStatus(userId: string, id: string, statusId: string) {
+  const existing = await prisma.issue.findUniqueOrThrow({ where: { id }, include: { status: true } });
   await requireProjectAccess(userId, existing.projectId);
-  if (status === existing.status) return existing;
+  if (statusId === existing.statusId) return existing;
 
+  const newStatus = await resolveStatusId(existing.projectId, statusId);
   const position = await prisma.issue.count({
-    where: { projectId: existing.projectId, status },
+    where: { projectId: existing.projectId, statusId: newStatus.id },
   });
 
   const issue = await prisma.issue.update({
     where: { id },
-    data: { status, position },
+    data: { statusId: newStatus.id, position },
     include: listInclude,
   });
   await logActivity(
     id,
     userId,
-    `moved this issue from ${STATUS_LABEL[existing.status]} to ${STATUS_LABEL[status]}`
+    `moved this issue from ${existing.status.name} to ${newStatus.name}`
   );
   return issue;
 }
@@ -238,7 +254,7 @@ async function updateStatus(userId: string, id: string, status: IssueStatus) {
 async function reorderColumn(
   userId: string,
   projectId: string,
-  status: IssueStatus,
+  statusId: string,
   orderedIds: string[]
 ) {
   await requireProjectAccess(userId, projectId);
@@ -249,7 +265,7 @@ async function reorderColumn(
   // requested subset back into the full column: issues not part of the reorder
   // keep their slot, the reordered ones take on the requested relative order.
   const columnIssues = await prisma.issue.findMany({
-    where: { projectId, status },
+    where: { projectId, statusId },
     select: { id: true },
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   });
@@ -270,7 +286,7 @@ async function reorderColumn(
   );
 
   return prisma.issue.findMany({
-    where: { projectId, status },
+    where: { projectId, statusId },
     include: listInclude,
     orderBy: listOrderBy,
   });
@@ -283,6 +299,20 @@ async function deleteIssue(userId: string, id: string) {
   });
   await requireProjectAccess(userId, existing.projectId);
   return prisma.issue.delete({ where: { id } });
+}
+
+async function setArchived(userId: string, id: string, archived: boolean) {
+  const existing = await prisma.issue.findUniqueOrThrow({
+    where: { id },
+    select: { projectId: true, archived: true },
+  });
+  await requireProjectAccess(userId, existing.projectId);
+  if (existing.archived === archived) {
+    return prisma.issue.findUniqueOrThrow({ where: { id }, include: listInclude });
+  }
+  const issue = await prisma.issue.update({ where: { id }, data: { archived }, include: listInclude });
+  await logActivity(id, userId, archived ? "archived this issue" : "restored this issue from archive");
+  return issue;
 }
 
 function suggestLabelsForTitle(title: string) {
@@ -310,5 +340,6 @@ export const issueService = {
   updateStatus,
   reorderColumn,
   deleteIssue,
+  setArchived,
   suggestLabelsForTitle,
 };

@@ -1,4 +1,4 @@
-import type { IssueStatus, IssuePriority } from "@prisma/client";
+import type { IssuePriority } from "@prisma/client";
 
 export interface ILabelInput {
   name: string;
@@ -10,7 +10,7 @@ export interface ICreateIssue {
   description?: string;
   projectId: string;
   assigneeId?: string;
-  status?: IssueStatus;
+  statusId?: string;
   priority?: IssuePriority;
   cycleId?: string;
   parentId?: string;
@@ -22,7 +22,7 @@ export interface ICreateIssue {
 export interface IUpdateIssue {
   title?: string;
   description?: string;
-  status?: IssueStatus;
+  statusId?: string;
   priority?: IssuePriority;
   assigneeId?: string | null;
   cycleId?: string | null;

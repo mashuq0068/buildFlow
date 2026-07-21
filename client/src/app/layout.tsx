@@ -9,6 +9,7 @@ import { NewIssueModal } from "@/components/new-issue/new-issue-modal";
 import { NewProjectModal } from "@/components/projects/new-project-modal";
 import { CommandPalette } from "@/components/command-palette/command-palette";
 import { GlobalShortcuts } from "@/components/global-shortcuts";
+import { ConfirmDialogHost } from "@/components/ui/confirm-dialog";
 import "./globals.css";
 
 const inter = Inter({
@@ -38,6 +39,7 @@ export default function RootLayout({
           <NewProjectModal />
           <CommandPalette />
           <GlobalShortcuts />
+          <ConfirmDialogHost />
           <Toaster richColors position="bottom-right" />
         </ThemeProvider>
       </body>

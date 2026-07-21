@@ -12,6 +12,7 @@ import { PRIORITY_LABEL, type Draft } from "@/lib/types";
 import { stripHtml } from "@/lib/utils";
 import { Trash2, Send, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { confirmAction } from "@/lib/stores/confirm-store";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -31,6 +32,22 @@ export default function DraftsPage() {
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const projects = useProjectsStore((s) => s.projects);
   const [editingDraft, setEditingDraft] = useState<Draft | null>(null);
+
+  async function handleDelete(draft: Draft) {
+    const ok = await confirmAction({
+      title: `Delete "${draft.title}"?`,
+      description: "This draft will be permanently deleted.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteDraft(draft.id);
+      toast.success("Draft deleted");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete draft");
+    }
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg">
@@ -84,7 +101,7 @@ export default function DraftsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => deleteDraft(draft.id)}
+                        onClick={() => handleDelete(draft)}
                         aria-label="Delete draft"
                         className="rounded-md p-1.5 text-fg-secondary transition-colors hover:bg-surface-hover hover:text-fg"
                       >

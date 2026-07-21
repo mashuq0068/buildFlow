@@ -12,12 +12,18 @@ enum Role {
   MEMBER
 }
 
-enum IssueStatus {
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum StatusCategory {
   BACKLOG
-  TODO
-  IN_PROGRESS
-  IN_REVIEW
-  DONE
+  UNSTARTED
+  STARTED
+  COMPLETED
   CANCELED
 }
 
@@ -52,13 +58,16 @@ model User {
   ledProjects        Project[]            @relation("ProjectLead")
   ownedGoals         Goal[]               @relation("GoalOwner")
   comments           Comment[]
+  commentReactions   CommentReaction[]
   activity           ActivityLog[]
   chatMessages       ProjectChatMessage[]
+  chatReactions      ProjectChatReaction[]
   drafts             Draft[]
   favorites          Favorite[]
   notificationsReceived Notification[]    @relation("NotificationRecipient")
   notificationsSent  Notification[]       @relation("NotificationActor")
   refreshTokens      RefreshToken[]
+  sentInvites        WorkspaceInvite[]    @relation("InviteSender")
 }
 
 model RefreshToken {
@@ -84,6 +93,24 @@ model Workspace {
   members  WorkspaceMember[]
   projects Project[]
   labels   Label[]
+  invites  WorkspaceInvite[]
+}
+
+model WorkspaceInvite {
+  id          String       @id @default(cuid())
+  email       String
+  role        Role         @default(MEMBER)
+  tokenHash   String       @unique
+  status      InviteStatus @default(PENDING)
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+  invitedBy   User         @relation("InviteSender", fields: [invitedById], references: [id])
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([workspaceId])
 }
 
 model WorkspaceMember {
@@ -113,14 +140,31 @@ model Project {
   leadId      String?
   createdAt   DateTime      @default(now())
 
-  members      ProjectMember[]
-  issues       Issue[]
-  cycles       Cycle[]
-  goals        Goal[]
-  drafts       Draft[]
-  chatMessages ProjectChatMessage[]
+  members       ProjectMember[]
+  issues        Issue[]
+  cycles        Cycle[]
+  goals         Goal[]
+  drafts        Draft[]
+  chatMessages  ProjectChatMessage[]
+  statusOptions IssueStatusOption[]
 
   @@unique([workspaceId, teamKey])
+}
+
+model IssueStatusOption {
+  id        String         @id @default(cuid())
+  name      String
+  color     String
+  icon      String         @default("Circle")
+  category  StatusCategory
+  position  Int            @default(0)
+  isDefault Boolean        @default(false)
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  issues    Issue[]
+  createdAt DateTime       @default(now())
+
+  @@unique([projectId, name])
 }
 
 model ProjectMember {
@@ -174,7 +218,8 @@ model Issue {
   identifier           Int
   title                String
   description          String?
-  status               IssueStatus   @default(BACKLOG)
+  status               IssueStatusOption @relation(fields: [statusId], references: [id])
+  statusId             String
   priority             IssuePriority @default(NO_PRIORITY)
   position             Int           @default(0)
   project              Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -195,6 +240,7 @@ model Issue {
   favoritedBy          Favorite[]
   aiSuggestedLabels    String[]      @default([])
   aiSuggestedReasoning String?
+  archived             Boolean       @default(false)
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
@@ -219,13 +265,44 @@ model IssueLabel {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  body      String
-  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
-  issueId   String
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  String
-  createdAt DateTime @default(now())
+  id               String    @id @default(cuid())
+  body             String
+  issue            Issue     @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issueId          String
+  author           User      @relation(fields: [authorId], references: [id])
+  authorId         String
+  parent           Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId         String?
+  replies          Comment[] @relation("CommentReplies")
+  mentionedUserIds String[]  @default([])
+  editedAt         DateTime?
+  createdAt        DateTime  @default(now())
+
+  attachments CommentAttachment[]
+  reactions   CommentReaction[]
+
+  @@index([issueId])
+}
+
+model CommentAttachment {
+  id        String  @id @default(cuid())
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String
+  name      String
+  url       String
+  size      String
+  isImage   Boolean @default(false)
+}
+
+model CommentReaction {
+  id        String  @id @default(cuid())
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String
+  emoji     String
+
+  @@unique([commentId, userId, emoji])
 }
 
 model ActivityLog {
@@ -239,13 +316,44 @@ model ActivityLog {
 }
 
 model ProjectChatMessage {
-  id        String   @id @default(cuid())
-  body      String
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId String
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  String
-  createdAt DateTime @default(now())
+  id               String              @id @default(cuid())
+  body             String
+  project          Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId        String
+  author           User                @relation(fields: [authorId], references: [id])
+  authorId         String
+  parent           ProjectChatMessage? @relation("ProjectChatReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId         String?
+  replies          ProjectChatMessage[] @relation("ProjectChatReplies")
+  mentionedUserIds String[]            @default([])
+  editedAt         DateTime?
+  createdAt        DateTime            @default(now())
+
+  attachments ProjectChatAttachment[]
+  reactions   ProjectChatReaction[]
+
+  @@index([projectId])
+}
+
+model ProjectChatAttachment {
+  id        String             @id @default(cuid())
+  message   ProjectChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  name      String
+  url       String
+  size      String
+  isImage   Boolean            @default(false)
+}
+
+model ProjectChatReaction {
+  id        String             @id @default(cuid())
+  message   ProjectChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  user      User               @relation(fields: [userId], references: [id])
+  userId    String
+  emoji     String
+
+  @@unique([messageId, userId, emoji])
 }
 
 model Draft {

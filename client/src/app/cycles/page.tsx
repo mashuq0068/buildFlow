@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, RefreshCw } from "lucide-react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { NewCycleModal } from "@/components/cycles/new-cycle-modal";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
@@ -48,11 +49,27 @@ export default function CyclesPage() {
               New Cycle
             </button>
           </div>
+          {cycles.length === 0 ? (
+            <EmptyState
+              icon={RefreshCw}
+              title="No cycles yet"
+              description="Cycles group work into fixed time boxes so your team can plan and ship iteratively."
+              action={
+                <button
+                  type="button"
+                  onClick={() => setNewCycleOpen(true)}
+                  className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90"
+                >
+                  Create your first cycle
+                </button>
+              }
+            />
+          ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {cycles.map((cycle) => {
               const project = projects.find((p) => p.id === cycle.projectId);
               const cycleIssues = issues.filter((i) => i.cycleId === cycle.id);
-              const done = cycleIssues.filter((i) => i.status === "done").length;
+              const done = cycleIssues.filter((i) => i.status.category === "completed").length;
               const progress =
                 cycleIssues.length === 0 ? 0 : Math.round((done / cycleIssues.length) * 100);
               const isActive = today >= cycle.startDate && today <= cycle.endDate;
@@ -107,6 +124,7 @@ export default function CyclesPage() {
               );
             })}
           </div>
+          )}
         </main>
       </div>
       <NewCycleModal open={newCycleOpen} onOpenChange={setNewCycleOpen} />

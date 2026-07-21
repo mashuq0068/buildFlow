@@ -12,4 +12,13 @@ export const config = {
     refreshTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 30),
   },
   cookieSecure: process.env.COOKIE_SECURE === "true",
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT ?? 587),
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
+    replyTo: process.env.SMTP_REPLY_TO ?? process.env.SMTP_USER,
+  },
+  inviteTokenTtlDays: Number(process.env.INVITE_TOKEN_TTL_DAYS ?? 7),
 };

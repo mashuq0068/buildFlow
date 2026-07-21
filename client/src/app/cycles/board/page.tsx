@@ -9,6 +9,8 @@ import { ListView } from "@/components/list/list-view";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useCyclesStore } from "@/lib/stores/cycles-store";
+import { useProjectStatusColumns } from "@/lib/hooks/use-project-status-columns";
+import { getStatusColumnId } from "@/lib/board-columns";
 
 function CycleBoardContent() {
   const searchParams = useSearchParams();
@@ -20,6 +22,7 @@ function CycleBoardContent() {
     () => allIssues.filter((i) => i.cycleId === cycleId),
     [allIssues, cycleId]
   );
+  const columns = useProjectStatusColumns(cycle?.projectId);
 
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
@@ -40,9 +43,9 @@ function CycleBoardContent() {
             No issues are scheduled in this cycle yet.
           </p>
         ) : boardView === "board" ? (
-          <KanbanBoard issues={issues} />
+          <KanbanBoard issues={issues} columns={columns} getColumnId={getStatusColumnId} />
         ) : (
-          <ListView issues={issues} />
+          <ListView issues={issues} columns={columns} getColumnId={getStatusColumnId} />
         )}
       </div>
     </div>

@@ -9,6 +9,7 @@ import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useGoalsStore } from "@/lib/stores/goals-store";
 import { useMembersStore } from "@/lib/stores/members-store";
 import { ApiError } from "@/lib/api-client";
+import { confirmAction } from "@/lib/stores/confirm-store";
 import type { Goal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -97,7 +98,13 @@ export function NewGoalModal({
 
   async function handleDelete() {
     if (!editGoal) return;
-    if (!window.confirm(`Delete "${editGoal.title}"? This cannot be undone.`)) return;
+    const ok = await confirmAction({
+      title: `Delete "${editGoal.title}"?`,
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       await deleteGoal(editGoal.id);

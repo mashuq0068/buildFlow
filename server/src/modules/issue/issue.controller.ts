@@ -15,7 +15,8 @@ const getAll: RequestHandler = async (req, res, next) => {
   try {
     const projectId = req.query.projectId as string | undefined;
     if (projectId) {
-      const issues = await issueService.getIssuesByProject(req.user!.id, projectId);
+      const includeArchived = req.query.archived === "true";
+      const issues = await issueService.getIssuesByProject(req.user!.id, projectId, includeArchived);
       return res.json({ success: true, data: issues });
     }
 
@@ -30,8 +31,8 @@ const getAll: RequestHandler = async (req, res, next) => {
 
 const reorder: RequestHandler = async (req, res, next) => {
   try {
-    const { projectId, status, orderedIds } = req.body;
-    const issues = await issueService.reorderColumn(req.user!.id, projectId, status, orderedIds);
+    const { projectId, statusId, orderedIds } = req.body;
+    const issues = await issueService.reorderColumn(req.user!.id, projectId, statusId, orderedIds);
     res.json({ success: true, data: issues });
   } catch (err) {
     next(err);
@@ -58,7 +59,7 @@ const update: RequestHandler<{ id: string }> = async (req, res, next) => {
 
 const updateStatus: RequestHandler<{ id: string }> = async (req, res, next) => {
   try {
-    const issue = await issueService.updateStatus(req.user!.id, req.params.id, req.body.status);
+    const issue = await issueService.updateStatus(req.user!.id, req.params.id, req.body.statusId);
     res.json({ success: true, data: issue });
   } catch (err) {
     next(err);
@@ -69,6 +70,15 @@ const remove: RequestHandler<{ id: string }> = async (req, res, next) => {
   try {
     await issueService.deleteIssue(req.user!.id, req.params.id);
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+const archive: RequestHandler<{ id: string }> = async (req, res, next) => {
+  try {
+    const issue = await issueService.setArchived(req.user!.id, req.params.id, Boolean(req.body.archived));
+    res.json({ success: true, data: issue });
   } catch (err) {
     next(err);
   }
@@ -91,5 +101,6 @@ export const issueController = {
   updateStatus,
   reorder,
   remove,
+  archive,
   aiSuggest,
 };

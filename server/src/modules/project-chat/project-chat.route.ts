@@ -10,5 +10,16 @@ router.use(requireAuth);
 
 router.get("/", projectChatController.getAll);
 router.post("/", validateRequest(projectChatValidation.create), projectChatController.create);
+router.patch(
+  "/:messageId",
+  validateRequest(projectChatValidation.update),
+  projectChatController.update
+);
+router.delete("/:messageId", projectChatController.remove);
+router.post(
+  "/:messageId/reactions",
+  validateRequest(projectChatValidation.react),
+  projectChatController.react
+);
 
 export const projectChatRoutes = router;

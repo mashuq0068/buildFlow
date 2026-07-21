@@ -11,12 +11,8 @@ import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useMembersStore } from "@/lib/stores/members-store";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { api, ApiError } from "@/lib/api-client";
-import {
-  STATUS_COLUMNS,
-  PRIORITY_LABEL,
-  type IssuePriority,
-  type IssueStatus,
-} from "@/lib/types";
+import { PRIORITY_LABEL, type IssuePriority } from "@/lib/types";
+import { useProjectStatusColumns } from "@/lib/hooks/use-project-status-columns";
 import { cn, isEmptyHtml } from "@/lib/utils";
 
 const PRIORITIES: IssuePriority[] = ["no_priority", "low", "medium", "high", "urgent"];
@@ -40,10 +36,11 @@ export function NewIssueModal() {
   const newIssueProjectId = projects.some((p) => p.id === requestedProjectId)
     ? requestedProjectId
     : projects[0]?.id ?? "";
+  const statusColumns = useProjectStatusColumns(newIssueProjectId || undefined);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<IssueStatus>("backlog");
+  const [statusId, setStatusId] = useState("");
   const [priority, setPriority] = useState<IssuePriority>("no_priority");
   const [assigneeId, setAssigneeId] = useState<string>("");
   const [createMore, setCreateMore] = useState(false);
@@ -57,7 +54,7 @@ export function NewIssueModal() {
   function resetForm() {
     setTitle("");
     setDescription("");
-    setStatus("backlog");
+    setStatusId("");
     setPriority("no_priority");
     setAssigneeId("");
     setAiSuggestion(null);
@@ -107,7 +104,7 @@ export function NewIssueModal() {
       const issue = await createIssue({
         title: trimmed,
         description: isEmptyHtml(description) ? undefined : description,
-        status,
+        statusId: statusId || undefined,
         priority,
         projectId: newIssueProjectId,
         assigneeId: assigneeId || undefined,
@@ -159,7 +156,7 @@ export function NewIssueModal() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.97, y: 8 }}
                 transition={{ duration: 0.15 }}
-                className="fixed left-1/2 top-1/2 z-50 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg shadow-[0_16px_48px_rgba(0,0,0,0.35)]"
+                className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border border-border bg-bg shadow-[0_16px_48px_rgba(0,0,0,0.35)]"
               >
                 <div className="flex items-center justify-between border-b border-border px-5 py-3">
                   <Dialog.Title className="text-xs font-medium text-fg-secondary">
@@ -188,7 +185,8 @@ export function NewIssueModal() {
                       onChange={setDescription}
                       placeholder="Add a description..."
                       className="mt-4"
-                      minHeight={72}
+                      minHeight={140}
+                      fullFeatured
                     />
                   </div>
 
@@ -225,11 +223,11 @@ export function NewIssueModal() {
                   <div className="flex flex-col gap-3 rounded-md border border-border p-3">
                     <PropertyField label="Status">
                       <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value as IssueStatus)}
+                        value={statusId || statusColumns[0]?.id || ""}
+                        onChange={(e) => setStatusId(e.target.value)}
                         className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-fg outline-none"
                       >
-                        {STATUS_COLUMNS.map((c) => (
+                        {statusColumns.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.label}
                           </option>

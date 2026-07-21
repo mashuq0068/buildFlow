@@ -32,8 +32,10 @@ export default function DashboardPage() {
   const myIssues = issues.filter(
     (i) => i.assignee?.id === currentUser?.id || i.creator?.id === currentUser?.id
   );
-  const myOpenIssues = myIssues.filter((i) => i.status !== "done" && i.status !== "canceled");
-  const myInProgress = myIssues.filter((i) => i.status === "in_progress");
+  const myOpenIssues = myIssues.filter(
+    (i) => i.status.category !== "completed" && i.status.category !== "canceled"
+  );
+  const myInProgress = myIssues.filter((i) => i.status.category === "started");
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg">
@@ -103,7 +105,7 @@ export default function DashboardPage() {
                 )}
                 {projects.map((project) => {
                   const projectIssues = issues.filter((i) => i.projectId === project.id);
-                  const done = projectIssues.filter((i) => i.status === "done").length;
+                  const done = projectIssues.filter((i) => i.status.category === "completed").length;
                   return (
                     <Link
                       key={project.id}

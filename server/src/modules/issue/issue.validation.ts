@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-const statusEnum = z.enum(["BACKLOG", "TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELED"]);
 const priorityEnum = z.enum(["NO_PRIORITY", "LOW", "MEDIUM", "HIGH", "URGENT"]);
 const labelInput = z.object({ name: z.string().min(1), color: z.string().min(1) });
 
@@ -10,7 +9,7 @@ const create = z.object({
     description: z.string().optional(),
     projectId: z.string().min(1),
     assigneeId: z.string().optional(),
-    status: statusEnum.optional(),
+    statusId: z.string().optional(),
     priority: priorityEnum.optional(),
     cycleId: z.string().optional(),
     parentId: z.string().optional(),
@@ -24,7 +23,7 @@ const update = z.object({
   body: z.object({
     title: z.string().min(1).optional(),
     description: z.string().optional(),
-    status: statusEnum.optional(),
+    statusId: z.string().optional(),
     priority: priorityEnum.optional(),
     assigneeId: z.string().nullable().optional(),
     cycleId: z.string().nullable().optional(),
@@ -34,7 +33,7 @@ const update = z.object({
 
 const updateStatus = z.object({
   body: z.object({
-    status: statusEnum,
+    statusId: z.string().min(1),
   }),
 });
 
@@ -47,7 +46,7 @@ const aiSuggest = z.object({
 const reorder = z.object({
   body: z.object({
     projectId: z.string().min(1),
-    status: statusEnum,
+    statusId: z.string().min(1),
     orderedIds: z.array(z.string().min(1)).min(1),
   }),
 });

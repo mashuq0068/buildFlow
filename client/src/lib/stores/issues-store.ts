@@ -1,14 +1,8 @@
 import { create } from "zustand";
 import { api } from "@/lib/api-client";
-import {
-  mapIssue,
-  mapComment,
-  mapActivity,
-  mapDraft,
-  statusToServer,
-  priorityToServer,
-} from "@/lib/api/mappers";
-import type { Issue, IssueStatus, IssuePriority, Comment, ActivityEntry, Draft } from "@/lib/types";
+import { mapIssue, mapComment, mapActivity, mapDraft, priorityToServer } from "@/lib/api/mappers";
+import type { Issue, IssuePriority, Comment, ActivityEntry, Draft } from "@/lib/types";
+import type { UploadedFile } from "@/lib/upload";
 
 type ServerIssue = Parameters<typeof mapIssue>[0];
 
@@ -17,7 +11,7 @@ interface CreateIssueInput {
   description?: string;
   projectId: string;
   assigneeId?: string;
-  status?: IssueStatus;
+  statusId?: string;
   priority?: IssuePriority;
   cycleId?: string;
   labels?: { name: string; color: string }[];
@@ -28,6 +22,7 @@ interface CreateIssueInput {
 interface UpdateIssueInput {
   title?: string;
   description?: string;
+  statusId?: string;
   priority?: IssuePriority;
   assigneeId?: string | null;
   cycleId?: string | null;
@@ -53,11 +48,22 @@ interface IssuesState {
   fetchDrafts: (workspaceId: string) => Promise<void>;
   loadIssueDetail: (issueId: string) => Promise<void>;
 
-  moveIssue: (issueId: string, status: IssueStatus) => Promise<void>;
-  reorderWithinStatus: (projectId: string, status: IssueStatus, orderedIds: string[]) => Promise<void>;
-  addComment: (issueId: string, body: string) => Promise<void>;
+  moveIssue: (issueId: string, statusId: string) => Promise<void>;
+  reorderWithinStatus: (projectId: string, statusId: string, orderedIds: string[]) => Promise<void>;
+  addComment: (
+    issueId: string,
+    body: string,
+    parentId?: string,
+    attachments?: UploadedFile[]
+  ) => Promise<void>;
+  updateComment: (issueId: string, commentId: string, body: string) => Promise<void>;
+  deleteComment: (issueId: string, commentId: string) => Promise<void>;
+  toggleCommentReaction: (issueId: string, commentId: string, emoji: string) => Promise<void>;
   updateIssue: (issueId: string, patch: UpdateIssueInput) => Promise<void>;
   createIssue: (input: CreateIssueInput) => Promise<Issue>;
+  deleteIssue: (issueId: string) => Promise<void>;
+  archiveIssue: (issueId: string, archived: boolean) => Promise<void>;
+  duplicateIssue: (issueId: string) => Promise<Issue>;
   toggleFavorite: (issueId: string) => Promise<void>;
   saveDraft: (input: CreateDraftInput) => Promise<void>;
   updateDraft: (draftId: string, patch: Partial<CreateDraftInput>) => Promise<void>;
@@ -102,22 +108,20 @@ export const useIssuesStore = create<IssuesState>()((set, get) => ({
     }));
   },
 
-  moveIssue: async (issueId, status) => {
+  moveIssue: async (issueId, statusId) => {
     const issue = get().issues.find((i) => i.id === issueId);
-    if (!issue || issue.status === status) return;
-    const raw = await api.patch<ServerIssue>(`/issues/${issueId}/status`, {
-      status: statusToServer(status),
-    });
+    if (!issue || issue.status.id === statusId) return;
+    const raw = await api.patch<ServerIssue>(`/issues/${issueId}/status`, { statusId });
     const updated = mapIssue(raw);
     set((state) => ({ issues: state.issues.map((i) => (i.id === issueId ? updated : i)) }));
   },
 
-  reorderWithinStatus: async (projectId, status, orderedIds) => {
+  reorderWithinStatus: async (projectId, statusId, orderedIds) => {
     // The server returns the FULL column in its new order (it may contain issues
     // outside this view's filtered subset), so splice the whole thing back in.
     const raw = await api.patch<ServerIssue[]>("/issues/reorder", {
       projectId,
-      status: statusToServer(status),
+      statusId,
       orderedIds,
     });
     const updated = raw.map((i) => mapIssue(i));
@@ -128,13 +132,53 @@ export const useIssuesStore = create<IssuesState>()((set, get) => ({
     });
   },
 
-  addComment: async (issueId, body) => {
+  addComment: async (issueId, body, parentId, attachments) => {
     const raw = await api.post<Parameters<typeof mapComment>[0]>(`/issues/${issueId}/comments`, {
       body,
+      parentId,
+      attachments,
     });
     const comment = mapComment(raw);
     set((state) => ({
       comments: { ...state.comments, [issueId]: [...(state.comments[issueId] ?? []), comment] },
+    }));
+  },
+
+  updateComment: async (issueId, commentId, body) => {
+    const raw = await api.patch<Parameters<typeof mapComment>[0]>(
+      `/issues/${issueId}/comments/${commentId}`,
+      { body }
+    );
+    const comment = mapComment(raw);
+    set((state) => ({
+      comments: {
+        ...state.comments,
+        [issueId]: (state.comments[issueId] ?? []).map((c) => (c.id === commentId ? comment : c)),
+      },
+    }));
+  },
+
+  deleteComment: async (issueId, commentId) => {
+    await api.delete(`/issues/${issueId}/comments/${commentId}`);
+    set((state) => ({
+      comments: {
+        ...state.comments,
+        [issueId]: (state.comments[issueId] ?? []).filter((c) => c.id !== commentId),
+      },
+    }));
+  },
+
+  toggleCommentReaction: async (issueId, commentId, emoji) => {
+    const raw = await api.post<Parameters<typeof mapComment>[0]>(
+      `/issues/${issueId}/comments/${commentId}/reactions`,
+      { emoji }
+    );
+    const comment = mapComment(raw);
+    set((state) => ({
+      comments: {
+        ...state.comments,
+        [issueId]: (state.comments[issueId] ?? []).map((c) => (c.id === commentId ? comment : c)),
+      },
     }));
   },
 
@@ -150,8 +194,40 @@ export const useIssuesStore = create<IssuesState>()((set, get) => ({
   createIssue: async (input) => {
     const raw = await api.post<ServerIssue>("/issues", {
       ...input,
-      status: input.status ? statusToServer(input.status) : undefined,
       priority: input.priority ? priorityToServer(input.priority) : undefined,
+    });
+    const issue = mapIssue(raw);
+    set((state) => ({ issues: [issue, ...state.issues] }));
+    return issue;
+  },
+
+  deleteIssue: async (issueId) => {
+    await api.delete(`/issues/${issueId}`);
+    set((state) => ({ issues: state.issues.filter((i) => i.id !== issueId) }));
+  },
+
+  archiveIssue: async (issueId, archived) => {
+    const raw = await api.patch<ServerIssue>(`/issues/${issueId}/archive`, { archived });
+    const updated = mapIssue(raw);
+    set((state) => ({
+      issues: archived
+        ? state.issues.filter((i) => i.id !== issueId)
+        : state.issues.map((i) => (i.id === issueId ? updated : i)),
+    }));
+  },
+
+  duplicateIssue: async (issueId) => {
+    const source = get().issues.find((i) => i.id === issueId);
+    if (!source) throw new Error("Issue not found");
+    const raw = await api.post<ServerIssue>("/issues", {
+      title: `${source.title} (copy)`,
+      description: source.description,
+      projectId: source.projectId,
+      assigneeId: source.assignee?.id,
+      statusId: source.status.id,
+      priority: priorityToServer(source.priority),
+      cycleId: source.cycleId,
+      labels: source.labels?.map((l) => ({ name: l.name, color: l.color })),
     });
     const issue = mapIssue(raw);
     set((state) => ({ issues: [issue, ...state.issues] }));

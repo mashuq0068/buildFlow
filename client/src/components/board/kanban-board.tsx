@@ -18,32 +18,48 @@ import { KanbanColumn } from "./kanban-column";
 import { IssueCardOverlay } from "./issue-card-overlay";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { ApiError } from "@/lib/api-client";
-import { STATUS_COLUMNS, type Issue, type IssueStatus } from "@/lib/types";
+import type { Issue } from "@/lib/types";
 
-export function KanbanBoard({ issues }: { issues: Issue[] }) {
+export interface BoardColumn {
+  id: string;
+  label: string;
+  color?: string;
+}
+
+interface KanbanBoardProps {
+  issues: Issue[];
+  columns: BoardColumn[];
+  getColumnId: (issue: Issue) => string;
+  draggable?: boolean;
+}
+
+export function KanbanBoard({ issues, columns, getColumnId, draggable = true }: KanbanBoardProps) {
   const moveIssue = useIssuesStore((s) => s.moveIssue);
   const reorderWithinStatus = useIssuesStore((s) => s.reorderWithinStatus);
 
   const issuesById = useMemo(() => Object.fromEntries(issues.map((i) => [i.id, i])), [issues]);
   const itemsByColumn = useMemo(() => {
-    const grouped = {} as Record<IssueStatus, string[]>;
-    for (const column of STATUS_COLUMNS) grouped[column.id] = [];
-    for (const issue of issues) grouped[issue.status].push(issue.id);
+    const grouped: Record<string, string[]> = {};
+    for (const column of columns) grouped[column.id] = [];
+    for (const issue of issues) {
+      const columnId = getColumnId(issue);
+      (grouped[columnId] ??= []).push(issue.id);
+    }
     return grouped;
-  }, [issues]);
+  }, [issues, columns, getColumnId]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [previewColumn, setPreviewColumn] = useState<Record<IssueStatus, string[]> | null>(null);
+  const [previewColumn, setPreviewColumn] = useState<Record<string, string[]> | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
   );
 
-  const columns = previewColumn ?? itemsByColumn;
+  const columnsState = previewColumn ?? itemsByColumn;
 
-  function findContainer(id: string): IssueStatus | undefined {
-    if (id in columns) return id as IssueStatus;
-    return STATUS_COLUMNS.find((column) => columns[column.id].includes(id))?.id;
+  function findContainer(id: string): string | undefined {
+    if (id in columnsState) return id;
+    return columns.find((column) => columnsState[column.id]?.includes(id))?.id;
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -85,12 +101,12 @@ export function KanbanBoard({ issues }: { issues: Issue[] }) {
     setPreviewColumn(null);
     if (!over || !finalColumns) return;
 
-    const originalContainer = STATUS_COLUMNS.find((c) =>
-      itemsByColumn[c.id].includes(active.id as string)
+    const originalContainer = columns.find((c) =>
+      itemsByColumn[c.id]?.includes(active.id as string)
     )?.id;
     const finalContainer = Object.keys(finalColumns).find((key) =>
-      finalColumns[key as IssueStatus].includes(active.id as string)
-    ) as IssueStatus | undefined;
+      finalColumns[key].includes(active.id as string)
+    );
 
     if (!originalContainer || !finalContainer) return;
 
@@ -100,11 +116,7 @@ export function KanbanBoard({ issues }: { issues: Issue[] }) {
     try {
       if (originalContainer !== finalContainer) {
         await moveIssue(active.id as string, finalContainer);
-        await reorderWithinStatus(
-          movedIssue.projectId,
-          finalContainer,
-          finalColumns[finalContainer]
-        );
+        await reorderWithinStatus(movedIssue.projectId, finalContainer, finalColumns[finalContainer]);
         return;
       }
 
@@ -138,12 +150,14 @@ export function KanbanBoard({ issues }: { issues: Issue[] }) {
       onDragEnd={handleDragEnd}
     >
       <main className="flex flex-1 gap-4 overflow-x-auto p-4">
-        {STATUS_COLUMNS.map((column) => (
+        {columns.map((column) => (
           <KanbanColumn
             key={column.id}
             id={column.id}
             label={column.label}
-            issues={columns[column.id].map((id) => issuesById[id])}
+            color={column.color}
+            draggable={draggable}
+            issues={(columnsState[column.id] ?? []).map((id) => issuesById[id]).filter(Boolean)}
           />
         ))}
       </main>

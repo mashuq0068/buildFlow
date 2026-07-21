@@ -22,6 +22,7 @@ router.patch(
   issueController.updateStatus
 );
 router.delete("/:id", issueController.remove);
+router.patch("/:id/archive", issueController.archive);
 router.use("/:issueId/comments", commentRoutes);
 router.use("/:issueId/favorite", favoriteRoutes);
 

@@ -1,17 +1,24 @@
 "use client";
 
 import { useMemo } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { KanbanBoard } from "@/components/board/kanban-board";
 import { ListView } from "@/components/list/list-view";
+import { IssueFilterBar } from "@/components/board/issue-filter-bar";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
+import { useMembersStore } from "@/lib/stores/members-store";
 import { useCurrentUser } from "@/lib/current-user";
+import { useIssueFilters } from "@/lib/hooks/use-issue-filters";
+import { CATEGORY_COLUMNS, getCategoryColumnId } from "@/lib/board-columns";
 
 export default function MyIssuesPage() {
   const currentUser = useCurrentUser();
   const allIssues = useIssuesStore((s) => s.issues);
+  const members = useMembersStore((s) => s.members);
   const issues = useMemo(
     () =>
       allIssues.filter(
@@ -19,6 +26,7 @@ export default function MyIssuesPage() {
       ),
     [allIssues, currentUser?.id]
   );
+  const filters = useIssueFilters(issues);
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const boardView = useUIStore((s) => s.boardView);
@@ -34,13 +42,31 @@ export default function MyIssuesPage() {
           onSearch={() => setCommandPaletteOpen(true)}
         />
         {issues.length === 0 ? (
-          <p className="p-6 text-center text-sm text-fg-secondary">
-            No issues assigned to or created by you yet.
-          </p>
-        ) : boardView === "board" ? (
-          <KanbanBoard issues={issues} />
+          <EmptyState
+            icon={CheckCircle2}
+            title="No issues yet"
+            description="Issues assigned to you or created by you will show up here."
+          />
         ) : (
-          <ListView issues={issues} />
+          <>
+            <IssueFilterBar filters={filters} issues={issues} members={members} />
+            {filters.filtered.length === 0 ? (
+              <EmptyState icon={CheckCircle2} title="No issues match your filters" />
+            ) : boardView === "board" ? (
+              <KanbanBoard
+                issues={filters.filtered}
+                columns={CATEGORY_COLUMNS}
+                getColumnId={getCategoryColumnId}
+                draggable={false}
+              />
+            ) : (
+              <ListView
+                issues={filters.filtered}
+                columns={CATEGORY_COLUMNS}
+                getColumnId={getCategoryColumnId}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

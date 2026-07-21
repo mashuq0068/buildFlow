@@ -77,7 +77,7 @@ export function EditDraftModal({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.97, y: 8 }}
                 transition={{ duration: 0.15 }}
-                className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-bg shadow-[0_16px_48px_rgba(0,0,0,0.35)]"
+                className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border border-border bg-bg shadow-[0_16px_48px_rgba(0,0,0,0.35)]"
               >
                 <div className="border-b border-border px-5 py-3">
                   <Dialog.Title className="text-sm font-medium text-fg">Edit draft</Dialog.Title>
@@ -97,6 +97,7 @@ export function EditDraftModal({
                     onChange={setDescription}
                     placeholder="Add a description..."
                     minHeight={72}
+                    fullFeatured
                   />
                   <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
                     <span className="text-xs text-fg-secondary">Priority</span>

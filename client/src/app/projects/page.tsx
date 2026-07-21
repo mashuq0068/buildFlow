@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, FolderKanban } from "lucide-react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
@@ -35,13 +36,26 @@ export default function ProjectsPage() {
               New Project
             </button>
           </div>
-          {projects.length === 0 && (
-            <p className="text-sm text-fg-secondary">You&apos;re not on any projects yet.</p>
-          )}
+          {projects.length === 0 ? (
+            <EmptyState
+              icon={FolderKanban}
+              title="No projects yet"
+              description="Create a project to start organizing issues, cycles, and goals."
+              action={
+                <button
+                  type="button"
+                  onClick={() => setNewProjectOpen(true)}
+                  className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90"
+                >
+                  Create your first project
+                </button>
+              }
+            />
+          ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => {
               const projectIssues = issues.filter((i) => i.projectId === project.id);
-              const done = projectIssues.filter((i) => i.status === "done").length;
+              const done = projectIssues.filter((i) => i.status.category === "completed").length;
               const progress =
                 projectIssues.length === 0 ? 0 : Math.round((done / projectIssues.length) * 100);
 
@@ -75,6 +89,7 @@ export default function ProjectsPage() {
               );
             })}
           </div>
+          )}
         </main>
       </div>
     </div>

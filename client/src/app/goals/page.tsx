@@ -5,6 +5,7 @@ import { Target, Plus, Pencil } from "lucide-react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { NewGoalModal } from "@/components/goals/new-goal-modal";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
@@ -45,11 +46,27 @@ export default function GoalsPage() {
               New Goal
             </button>
           </div>
+          {goals.length === 0 ? (
+            <EmptyState
+              icon={Target}
+              title="No goals yet"
+              description="Goals tie a project's progress to a target date so everyone can see what's on track."
+              action={
+                <button
+                  type="button"
+                  onClick={() => setNewGoalOpen(true)}
+                  className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90"
+                >
+                  Create your first goal
+                </button>
+              }
+            />
+          ) : (
           <div className="flex flex-col gap-3">
             {goals.map((goal) => {
               const project = projects.find((p) => p.id === goal.projectId);
               const projectIssues = issues.filter((i) => i.projectId === goal.projectId);
-              const done = projectIssues.filter((i) => i.status === "done").length;
+              const done = projectIssues.filter((i) => i.status.category === "completed").length;
               const progress =
                 projectIssues.length === 0 ? 0 : Math.round((done / projectIssues.length) * 100);
               const remaining = daysUntil(goal.targetDate);
@@ -115,6 +132,7 @@ export default function GoalsPage() {
               );
             })}
           </div>
+          )}
         </main>
       </div>
       <NewGoalModal open={newGoalOpen} onOpenChange={setNewGoalOpen} />

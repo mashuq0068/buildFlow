@@ -3,7 +3,8 @@ import type {
   Label,
   Attachment,
   Issue,
-  IssueStatus,
+  IssueStatusOption,
+  StatusCategory,
   IssuePriority,
   Project,
   ProjectStatus,
@@ -17,22 +18,49 @@ import type {
   ActivityEntry,
 } from "@/lib/types";
 
-const STATUS_FROM_SERVER: Record<string, IssueStatus> = {
+const CATEGORY_FROM_SERVER: Record<string, StatusCategory> = {
   BACKLOG: "backlog",
-  TODO: "todo",
-  IN_PROGRESS: "in_progress",
-  IN_REVIEW: "in_review",
-  DONE: "done",
+  UNSTARTED: "unstarted",
+  STARTED: "started",
+  COMPLETED: "completed",
   CANCELED: "canceled",
 };
-const STATUS_TO_SERVER: Record<IssueStatus, string> = {
+const CATEGORY_TO_SERVER: Record<StatusCategory, string> = {
   backlog: "BACKLOG",
-  todo: "TODO",
-  in_progress: "IN_PROGRESS",
-  in_review: "IN_REVIEW",
-  done: "DONE",
+  unstarted: "UNSTARTED",
+  started: "STARTED",
+  completed: "COMPLETED",
   canceled: "CANCELED",
 };
+
+export function categoryFromServer(category: string): StatusCategory {
+  return CATEGORY_FROM_SERVER[category] ?? "backlog";
+}
+export function categoryToServer(category: StatusCategory): string {
+  return CATEGORY_TO_SERVER[category];
+}
+
+interface ServerStatusOption {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  category: string;
+  position: number;
+  isDefault: boolean;
+}
+
+export function mapStatusOption(s: ServerStatusOption): IssueStatusOption {
+  return {
+    id: s.id,
+    name: s.name,
+    color: s.color,
+    icon: s.icon,
+    category: categoryFromServer(s.category),
+    position: s.position,
+    isDefault: s.isDefault,
+  };
+}
 
 const PRIORITY_FROM_SERVER: Record<string, IssuePriority> = {
   NO_PRIORITY: "no_priority",
@@ -62,12 +90,6 @@ const PROJECT_STATUS_TO_SERVER: Record<ProjectStatus, string> = {
   completed: "COMPLETED",
 };
 
-export function statusFromServer(status: string): IssueStatus {
-  return STATUS_FROM_SERVER[status] ?? "backlog";
-}
-export function statusToServer(status: IssueStatus): string {
-  return STATUS_TO_SERVER[status];
-}
 export function priorityFromServer(priority: string): IssuePriority {
   return PRIORITY_FROM_SERVER[priority] ?? "no_priority";
 }
@@ -117,7 +139,7 @@ interface ServerIssue {
   identifier: number;
   title: string;
   description?: string | null;
-  status: string;
+  status: ServerStatusOption;
   priority: string;
   projectId: string;
   cycleId?: string | null;
@@ -129,6 +151,7 @@ interface ServerIssue {
   attachments?: { id: string; name: string; size: string }[];
   aiSuggestedLabels?: string[];
   aiSuggestedReasoning?: string | null;
+  archived?: boolean;
 }
 
 export function mapIssue(issue: ServerIssue, teamKeyFallback = "ISSUE"): Issue {
@@ -138,11 +161,12 @@ export function mapIssue(issue: ServerIssue, teamKeyFallback = "ISSUE"): Issue {
     identifier: `${teamKey}-${issue.identifier}`,
     title: issue.title,
     description: issue.description ?? undefined,
-    status: statusFromServer(issue.status),
+    status: mapStatusOption(issue.status),
     priority: priorityFromServer(issue.priority),
     projectId: issue.projectId,
     cycleId: issue.cycleId ?? undefined,
     parentId: issue.parentId ?? undefined,
+    archived: issue.archived ?? false,
     assignee: issue.assignee ? mapPerson(issue.assignee) : undefined,
     creator: issue.creator ? mapPerson(issue.creator) : undefined,
     labels: issue.labels?.map((l) => mapLabel(l.label)),
@@ -262,11 +286,30 @@ export function mapDraft(d: ServerDraft): Draft {
   };
 }
 
+interface ServerReaction {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+  userNames: string[];
+}
+
+interface ServerAttachment {
+  id: string;
+  name: string;
+  url: string;
+  size: string;
+  isImage: boolean;
+}
+
 interface ServerAuthored {
   id: string;
   body: string;
   author: ServerUser;
   createdAt: string | Date;
+  parentId?: string | null;
+  editedAt?: string | Date | null;
+  attachments?: ServerAttachment[];
+  reactions?: ServerReaction[];
 }
 
 export function mapComment(c: ServerAuthored): Comment {
@@ -275,6 +318,10 @@ export function mapComment(c: ServerAuthored): Comment {
     author: mapPerson(c.author),
     body: c.body,
     createdAt: new Date(c.createdAt).toISOString(),
+    editedAt: c.editedAt ? new Date(c.editedAt).toISOString() : undefined,
+    parentId: c.parentId ?? undefined,
+    attachments: c.attachments ?? [],
+    reactions: c.reactions ?? [],
   };
 }
 
@@ -284,6 +331,10 @@ export function mapChatMessage(m: ServerAuthored): ChatMessage {
     author: mapPerson(m.author),
     body: m.body,
     createdAt: new Date(m.createdAt).toISOString(),
+    editedAt: m.editedAt ? new Date(m.editedAt).toISOString() : undefined,
+    parentId: m.parentId ?? undefined,
+    attachments: m.attachments ?? [],
+    reactions: m.reactions ?? [],
   };
 }
 

@@ -3,19 +3,11 @@ import { hashPassword } from "../../lib/password";
 import { requireWorkspaceAdmin, requireWorkspaceMembership } from "../../lib/authz";
 import { HttpError } from "../../lib/http-error";
 import { safeUserSelect } from "../../lib/user-select";
+import { initialsFor } from "../../lib/initials";
 import type { Role } from "@prisma/client";
 import type { IAddMemberInput } from "./user.interface";
 
 const DEFAULT_TEMP_PASSWORD = "Welcome123!";
-
-function initialsFor(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
-}
 
 async function listWorkspaceMembers(requesterId: string, workspaceId: string) {
   await requireWorkspaceMembership(requesterId, workspaceId);

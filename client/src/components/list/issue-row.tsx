@@ -22,7 +22,17 @@ const PRIORITY_COLOR: Record<IssuePriority, string> = {
   urgent: "text-[#e5484d]",
 };
 
-export function IssueRow({ issue }: { issue: Issue }) {
+export function IssueRow({
+  issue,
+  selectable,
+  selected,
+  onToggleSelect,
+}: {
+  issue: Issue;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+}) {
   const openIssue = useUIStore((s) => s.openIssue);
   const isFavorite = useIssuesStore((s) => s.favoriteIds.includes(issue.id));
   const toggleFavorite = useIssuesStore((s) => s.toggleFavorite);
@@ -38,6 +48,15 @@ export function IssueRow({ issue }: { issue: Issue }) {
       }}
       className="flex w-full cursor-pointer items-center gap-3 border-b border-border px-3 py-2 text-left transition-colors hover:bg-surface-hover"
     >
+      {selectable && (
+        <input
+          type="checkbox"
+          checked={Boolean(selected)}
+          onClick={(e) => e.stopPropagation()}
+          onChange={onToggleSelect}
+          className="size-3.5 shrink-0 cursor-pointer accent-accent"
+        />
+      )}
       <button
         type="button"
         aria-label={isFavorite ? "Unstar issue" : "Star issue"}

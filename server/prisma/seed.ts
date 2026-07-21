@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/lib/password";
+import { DEFAULT_STATUS_TEMPLATE } from "../src/lib/default-statuses";
 
 const prisma = new PrismaClient();
 
@@ -9,21 +10,39 @@ async function reset() {
   await prisma.notification.deleteMany();
   await prisma.favorite.deleteMany();
   await prisma.activityLog.deleteMany();
+  await prisma.commentReaction.deleteMany();
+  await prisma.commentAttachment.deleteMany();
   await prisma.comment.deleteMany();
   await prisma.attachment.deleteMany();
   await prisma.issueLabel.deleteMany();
   await prisma.issue.deleteMany();
+  await prisma.issueStatusOption.deleteMany();
+  await prisma.projectChatReaction.deleteMany();
+  await prisma.projectChatAttachment.deleteMany();
   await prisma.projectChatMessage.deleteMany();
   await prisma.draft.deleteMany();
   await prisma.goal.deleteMany();
   await prisma.cycle.deleteMany();
   await prisma.projectMember.deleteMany();
+  await prisma.workspaceInvite.deleteMany();
   await prisma.project.deleteMany();
   await prisma.label.deleteMany();
   await prisma.workspaceMember.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.workspace.deleteMany();
   await prisma.user.deleteMany();
+}
+
+async function createDefaultStatuses(projectId: string) {
+  const statusByName = new Map<string, string>();
+  for (let i = 0; i < DEFAULT_STATUS_TEMPLATE.length; i++) {
+    const template = DEFAULT_STATUS_TEMPLATE[i];
+    const status = await prisma.issueStatusOption.create({
+      data: { ...template, position: i, projectId },
+    });
+    statusByName.set(template.name, status.id);
+  }
+  return statusByName;
 }
 
 async function main() {
@@ -118,6 +137,10 @@ async function main() {
       members: { create: [{ userId: jordan.id }] },
     },
   });
+
+  console.log("Seeding issue statuses...");
+  const engStatus = await createDefaultStatuses(engineering.id);
+  const desStatus = await createDefaultStatuses(design.id);
 
   console.log("Seeding cycles...");
   const cycle23 = await prisma.cycle.create({
@@ -214,7 +237,7 @@ async function main() {
     title: "Define workspace onboarding flow",
     description:
       "New workspaces currently drop the user straight onto an empty board. We need a short guided setup: create first team, invite members, create first project.",
-    status: "BACKLOG",
+    statusId: engStatus.get("Backlog")!,
     priority: "LOW",
     projectId: engineering.id,
     creatorId: alex.id,
@@ -226,7 +249,7 @@ async function main() {
     title: "Evaluate Redis vs Postgres LISTEN/NOTIFY for realtime",
     description:
       "Spike to compare a Redis pub/sub layer against Postgres LISTEN/NOTIFY for pushing live board updates to connected clients.",
-    status: "BACKLOG",
+    statusId: engStatus.get("Backlog")!,
     priority: "NO_PRIORITY",
     projectId: engineering.id,
     creatorId: alex.id,
@@ -237,7 +260,7 @@ async function main() {
     identifier: 142,
     title: "Set up CI pipeline for preview deployments",
     description: "Every PR should get a preview deployment URL posted as a comment.",
-    status: "TODO",
+    statusId: engStatus.get("Todo")!,
     priority: "MEDIUM",
     projectId: engineering.id,
     creatorId: alex.id,
@@ -251,7 +274,7 @@ async function main() {
   await createIssue("4", {
     identifier: 139,
     title: "Migrate auth session storage to Redis",
-    status: "TODO",
+    statusId: engStatus.get("Todo")!,
     priority: "LOW",
     projectId: engineering.id,
     creatorId: alex.id,
@@ -263,7 +286,7 @@ async function main() {
     title: "Kanban board drag-and-drop with optimistic updates",
     description:
       "Board should support cross-column drag, in-column reordering, and a drag overlay preview. Status changes should feel instant.",
-    status: "IN_PROGRESS",
+    statusId: engStatus.get("In Progress")!,
     priority: "HIGH",
     projectId: engineering.id,
     cycleId: cycle24.id,
@@ -276,7 +299,7 @@ async function main() {
   await createIssue("6", {
     identifier: 147,
     title: "Command palette fuzzy search",
-    status: "IN_PROGRESS",
+    statusId: engStatus.get("In Progress")!,
     priority: "URGENT",
     projectId: engineering.id,
     cycleId: cycle24.id,
@@ -292,7 +315,7 @@ async function main() {
     identifier: 133,
     title: "Issue detail panel with comment thread",
     description: "Slide-over panel: description, properties, Activity/Comments/History tabs.",
-    status: "IN_REVIEW",
+    statusId: engStatus.get("In Review")!,
     priority: "MEDIUM",
     projectId: engineering.id,
     cycleId: cycle24.id,
@@ -304,7 +327,7 @@ async function main() {
   await createIssue("8", {
     identifier: 130,
     title: "Workspace + team CRUD API",
-    status: "DONE",
+    statusId: engStatus.get("Done")!,
     priority: "MEDIUM",
     projectId: engineering.id,
     cycleId: cycle23.id,
@@ -316,7 +339,7 @@ async function main() {
   await createIssue("9", {
     identifier: 121,
     title: "Prisma schema for issues, labels, comments",
-    status: "DONE",
+    statusId: engStatus.get("Done")!,
     priority: "HIGH",
     projectId: engineering.id,
     cycleId: cycle23.id,
@@ -330,7 +353,7 @@ async function main() {
     title: "Design system tokens for dark + light theme",
     description:
       "Define spacing scale, radius scale, and monochrome color tokens for the shared design system.",
-    status: "IN_PROGRESS",
+    statusId: desStatus.get("In Progress")!,
     priority: "HIGH",
     projectId: design.id,
     creatorId: jordan.id,
@@ -341,7 +364,7 @@ async function main() {
   await createIssue("11", {
     identifier: 9,
     title: "Icon set audit — replace mixed icon sources with Lucide",
-    status: "TODO",
+    statusId: desStatus.get("Todo")!,
     priority: "MEDIUM",
     projectId: design.id,
     creatorId: jordan.id,
@@ -352,7 +375,7 @@ async function main() {
   await createIssue("12", {
     identifier: 4,
     title: "User research: onboarding drop-off interviews",
-    status: "BACKLOG",
+    statusId: desStatus.get("Backlog")!,
     priority: "LOW",
     projectId: design.id,
     creatorId: jordan.id,

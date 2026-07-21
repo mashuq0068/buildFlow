@@ -289,7 +289,7 @@ export function AppSidebar() {
                   {!sidebarCollapsed && (
                     <Link
                       href={chatHref}
-                      title={`${project.name} chat`}
+                      title={`${project.name} discussion`}
                       className={cn(
                         "shrink-0 rounded-md p-1.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-hover",
                         chatActive ? "text-fg opacity-100" : "text-fg-tertiary"

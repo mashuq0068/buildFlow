@@ -1,5 +1,16 @@
-export type IssueStatus = "backlog" | "todo" | "in_progress" | "in_review" | "done" | "canceled";
 export type IssuePriority = "no_priority" | "low" | "medium" | "high" | "urgent";
+
+export type StatusCategory = "backlog" | "unstarted" | "started" | "completed" | "canceled";
+
+export interface IssueStatusOption {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  category: StatusCategory;
+  position: number;
+  isDefault: boolean;
+}
 
 export interface Person {
   id: string;
@@ -24,7 +35,7 @@ export interface Issue {
   identifier: string;
   title: string;
   description?: string;
-  status: IssueStatus;
+  status: IssueStatusOption;
   priority: IssuePriority;
   assignee?: Person;
   creator?: Person;
@@ -33,6 +44,7 @@ export interface Issue {
   parentId?: string;
   projectId: string;
   cycleId?: string;
+  archived: boolean;
   aiSuggested?: {
     labels?: string[];
     reasoning: string;
@@ -98,11 +110,30 @@ export interface Member extends Person {
   title?: string;
 }
 
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+  userNames: string[];
+}
+
+export interface DiscussionAttachment {
+  id: string;
+  name: string;
+  url: string;
+  size: string;
+  isImage: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   author: Person;
   body: string;
   createdAt: string;
+  editedAt?: string;
+  parentId?: string;
+  attachments: DiscussionAttachment[];
+  reactions: ReactionSummary[];
 }
 
 export interface Comment {
@@ -110,6 +141,10 @@ export interface Comment {
   author: Person;
   body: string;
   createdAt: string;
+  editedAt?: string;
+  parentId?: string;
+  attachments: DiscussionAttachment[];
+  reactions: ReactionSummary[];
 }
 
 export interface ActivityEntry {
@@ -119,13 +154,29 @@ export interface ActivityEntry {
   createdAt: string;
 }
 
-export const STATUS_COLUMNS: { id: IssueStatus; label: string }[] = [
-  { id: "backlog", label: "Backlog" },
-  { id: "todo", label: "Todo" },
-  { id: "in_progress", label: "In Progress" },
-  { id: "in_review", label: "In Review" },
-  { id: "done", label: "Done" },
+export const CATEGORY_ORDER: StatusCategory[] = [
+  "backlog",
+  "unstarted",
+  "started",
+  "completed",
+  "canceled",
 ];
+
+export const CATEGORY_LABEL: Record<StatusCategory, string> = {
+  backlog: "Backlog",
+  unstarted: "Todo",
+  started: "In Progress",
+  completed: "Done",
+  canceled: "Canceled",
+};
+
+export const CATEGORY_COLOR: Record<StatusCategory, string> = {
+  backlog: "#8b8fa3",
+  unstarted: "#6e79d6",
+  started: "#e8a53f",
+  completed: "#4cb782",
+  canceled: "#6b7280",
+};
 
 export const PRIORITY_LABEL: Record<IssuePriority, string> = {
   no_priority: "No priority",

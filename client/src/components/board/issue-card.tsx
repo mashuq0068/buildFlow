@@ -6,6 +6,7 @@ import { SignalLow, SignalMedium, SignalHigh, AlertTriangle, Minus, Paperclip, S
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useIssuesStore } from "@/lib/stores/issues-store";
+import { STATUS_ICONS, DefaultStatusIcon } from "@/lib/status-icons";
 import type { Issue, IssuePriority } from "@/lib/types";
 
 const PRIORITY_ICON: Record<IssuePriority, React.ElementType> = {
@@ -24,16 +25,19 @@ const PRIORITY_COLOR: Record<IssuePriority, string> = {
   urgent: "text-[#e5484d]",
 };
 
-export function IssueCard({ issue }: { issue: Issue }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+export function IssueCard({ issue, draggable = true }: { issue: Issue; draggable?: boolean }) {
+  const sortable = useSortable({
     id: issue.id,
     data: { type: "issue", issue },
+    disabled: !draggable,
   });
+  const { setNodeRef, transform, transition, isDragging } = sortable;
   const openIssue = useUIStore((s) => s.openIssue);
   const isFavorite = useIssuesStore((s) => s.favoriteIds.includes(issue.id));
   const toggleFavorite = useIssuesStore((s) => s.toggleFavorite);
 
   const Icon = PRIORITY_ICON[issue.priority];
+  const StatusIcon = STATUS_ICONS[issue.status.icon] ?? DefaultStatusIcon;
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -44,11 +48,12 @@ export function IssueCard({ issue }: { issue: Issue }) {
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
+      {...(draggable ? sortable.attributes : {})}
+      {...(draggable ? sortable.listeners : {})}
       onClick={() => openIssue(issue.id)}
       className={cn(
-        "cursor-grab touch-none rounded-md border border-border bg-surface p-3 shadow-[var(--shadow-elevation)] transition-colors active:cursor-grabbing hover:bg-surface-hover",
+        "rounded-md border border-border bg-surface p-3 shadow-[var(--shadow-elevation)] transition-colors hover:bg-surface-hover",
+        draggable && "cursor-grab touch-none active:cursor-grabbing",
         isDragging && "opacity-40"
       )}
     >
@@ -89,6 +94,9 @@ export function IssueCard({ issue }: { issue: Issue }) {
         <div className="flex items-center gap-2">
           <span className="text-xs text-fg-secondary">{issue.identifier}</span>
           <Icon size={13} className={PRIORITY_COLOR[issue.priority]} />
+          <span title={issue.status.name} style={{ color: issue.status.color }}>
+            <StatusIcon size={13} />
+          </span>
           {issue.attachments && issue.attachments.length > 0 && (
             <span className="flex items-center gap-0.5 text-fg-tertiary">
               <Paperclip size={11} />

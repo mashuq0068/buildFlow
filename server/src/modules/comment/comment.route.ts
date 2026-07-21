@@ -10,5 +10,12 @@ router.use(requireAuth);
 
 router.get("/", commentController.getAll);
 router.post("/", validateRequest(commentValidation.create), commentController.create);
+router.patch("/:commentId", validateRequest(commentValidation.update), commentController.update);
+router.delete("/:commentId", commentController.remove);
+router.post(
+  "/:commentId/reactions",
+  validateRequest(commentValidation.react),
+  commentController.react
+);
 
 export const commentRoutes = router;

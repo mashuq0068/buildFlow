@@ -8,6 +8,7 @@ import { Trash2 } from "lucide-react";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useCyclesStore } from "@/lib/stores/cycles-store";
 import { ApiError } from "@/lib/api-client";
+import { confirmAction } from "@/lib/stores/confirm-store";
 import type { Cycle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -96,7 +97,13 @@ export function NewCycleModal({
 
   async function handleDelete() {
     if (!editCycle) return;
-    if (!window.confirm(`Delete ${editCycle.name}? This cannot be undone.`)) return;
+    const ok = await confirmAction({
+      title: `Delete ${editCycle.name}?`,
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       await deleteCycle(editCycle.id);
