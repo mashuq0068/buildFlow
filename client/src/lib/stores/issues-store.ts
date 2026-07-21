@@ -1,135 +1,219 @@
 import { create } from "zustand";
-import type { Issue, IssueStatus, Comment, ActivityEntry, Person, Draft } from "@/lib/types";
-import { STATUS_COLUMNS } from "@/lib/types";
+import { api } from "@/lib/api-client";
 import {
-  INITIAL_ISSUES,
-  INITIAL_COMMENTS,
-  INITIAL_ACTIVITY,
-  INITIAL_DRAFTS,
-  INITIAL_FAVORITE_IDS,
-} from "@/lib/mock-data";
-import { getCurrentUserSync } from "@/lib/current-user";
+  mapIssue,
+  mapComment,
+  mapActivity,
+  mapDraft,
+  statusToServer,
+  priorityToServer,
+} from "@/lib/api/mappers";
+import type { Issue, IssueStatus, IssuePriority, Comment, ActivityEntry, Draft } from "@/lib/types";
 
-function statusLabel(status: IssueStatus) {
-  return STATUS_COLUMNS.find((c) => c.id === status)?.label ?? status;
+type ServerIssue = Parameters<typeof mapIssue>[0];
+
+interface CreateIssueInput {
+  title: string;
+  description?: string;
+  projectId: string;
+  assigneeId?: string;
+  status?: IssueStatus;
+  priority?: IssuePriority;
+  cycleId?: string;
+  labels?: { name: string; color: string }[];
+  aiSuggestedLabels?: string[];
+  aiSuggestedReasoning?: string;
 }
 
-function id() {
-  return Math.random().toString(36).slice(2, 10);
+interface UpdateIssueInput {
+  title?: string;
+  description?: string;
+  priority?: IssuePriority;
+  assigneeId?: string | null;
+  cycleId?: string | null;
 }
 
-function nowIso() {
-  return new Date().toISOString();
+interface CreateDraftInput {
+  title: string;
+  description?: string;
+  projectId: string;
+  priority: IssuePriority;
 }
 
 interface IssuesState {
   issues: Issue[];
+  loaded: boolean;
   comments: Record<string, Comment[]>;
   activity: Record<string, ActivityEntry[]>;
   favoriteIds: string[];
   drafts: Draft[];
-  moveIssue: (issueId: string, status: IssueStatus, atIndex?: number) => void;
-  reorderWithinStatus: (status: IssueStatus, orderedIds: string[]) => void;
-  addComment: (issueId: string, body: string) => void;
-  updateIssue: (issueId: string, patch: Partial<Issue>) => void;
-  createIssue: (issue: Issue) => void;
-  logActivity: (issueId: string, message: string, author?: Person) => void;
-  toggleFavorite: (issueId: string) => void;
-  saveDraft: (draft: Draft) => void;
-  updateDraft: (draftId: string, patch: Partial<Draft>) => void;
-  deleteDraft: (draftId: string) => void;
-  publishDraft: (draftId: string, issue: Issue) => void;
+
+  fetchIssues: (workspaceId: string) => Promise<void>;
+  fetchFavorites: () => Promise<void>;
+  fetchDrafts: (workspaceId: string) => Promise<void>;
+  loadIssueDetail: (issueId: string) => Promise<void>;
+
+  moveIssue: (issueId: string, status: IssueStatus) => Promise<void>;
+  reorderWithinStatus: (projectId: string, status: IssueStatus, orderedIds: string[]) => Promise<void>;
+  addComment: (issueId: string, body: string) => Promise<void>;
+  updateIssue: (issueId: string, patch: UpdateIssueInput) => Promise<void>;
+  createIssue: (input: CreateIssueInput) => Promise<Issue>;
+  toggleFavorite: (issueId: string) => Promise<void>;
+  saveDraft: (input: CreateDraftInput) => Promise<void>;
+  updateDraft: (draftId: string, patch: Partial<CreateDraftInput>) => Promise<void>;
+  deleteDraft: (draftId: string) => Promise<void>;
+  publishDraft: (draftId: string) => Promise<Issue>;
+  reset: () => void;
 }
 
 export const useIssuesStore = create<IssuesState>()((set, get) => ({
-  issues: INITIAL_ISSUES,
-  comments: INITIAL_COMMENTS,
-  activity: INITIAL_ACTIVITY,
-  favoriteIds: INITIAL_FAVORITE_IDS,
-  drafts: INITIAL_DRAFTS,
+  issues: [],
+  loaded: false,
+  comments: {},
+  activity: {},
+  favoriteIds: [],
+  drafts: [],
 
-  moveIssue: (issueId, status) => {
-    const issue = get().issues.find((i) => i.id === issueId);
-    if (!issue || issue.status === status) return;
-    const fromLabel = statusLabel(issue.status);
-    const toLabel = statusLabel(status);
-    set((state) => ({
-      issues: state.issues.map((i) => (i.id === issueId ? { ...i, status } : i)),
-    }));
-    get().logActivity(issueId, `moved this issue from ${fromLabel} to ${toLabel}`);
+  fetchIssues: async (workspaceId) => {
+    const raw = await api.get<ServerIssue[]>(`/issues?workspaceId=${workspaceId}`);
+    set({ issues: raw.map((i) => mapIssue(i)), loaded: true });
   },
 
-  reorderWithinStatus: (status, orderedIds) => {
+  fetchFavorites: async () => {
+    const ids = await api.get<string[]>("/favorites");
+    set({ favoriteIds: ids });
+  },
+
+  fetchDrafts: async (workspaceId) => {
+    const raw = await api.get<Parameters<typeof mapDraft>[0][]>(`/drafts?workspaceId=${workspaceId}`);
+    set({ drafts: raw.map(mapDraft) });
+  },
+
+  loadIssueDetail: async (issueId) => {
+    const raw = await api.get<
+      ServerIssue & {
+        comments: Parameters<typeof mapComment>[0][];
+        activity: Parameters<typeof mapActivity>[0][];
+      }
+    >(`/issues/${issueId}`);
+    set((state) => ({
+      comments: { ...state.comments, [issueId]: raw.comments.map(mapComment) },
+      activity: { ...state.activity, [issueId]: raw.activity.map(mapActivity) },
+    }));
+  },
+
+  moveIssue: async (issueId, status) => {
+    const issue = get().issues.find((i) => i.id === issueId);
+    if (!issue || issue.status === status) return;
+    const raw = await api.patch<ServerIssue>(`/issues/${issueId}/status`, {
+      status: statusToServer(status),
+    });
+    const updated = mapIssue(raw);
+    set((state) => ({ issues: state.issues.map((i) => (i.id === issueId ? updated : i)) }));
+  },
+
+  reorderWithinStatus: async (projectId, status, orderedIds) => {
+    // The server returns the FULL column in its new order (it may contain issues
+    // outside this view's filtered subset), so splice the whole thing back in.
+    const raw = await api.patch<ServerIssue[]>("/issues/reorder", {
+      projectId,
+      status: statusToServer(status),
+      orderedIds,
+    });
+    const updated = raw.map((i) => mapIssue(i));
+    const updatedIds = new Set(updated.map((i) => i.id));
     set((state) => {
-      const rest = state.issues.filter((i) => i.status !== status);
-      const reordered = orderedIds
-        .map((id) => state.issues.find((i) => i.id === id))
-        .filter((i): i is Issue => Boolean(i));
-      return { issues: [...rest, ...reordered] };
+      const others = state.issues.filter((i) => !updatedIds.has(i.id));
+      return { issues: [...others, ...updated] };
     });
   },
 
-  addComment: (issueId, body) => {
-    const comment: Comment = {
-      id: id(),
-      author: getCurrentUserSync(),
+  addComment: async (issueId, body) => {
+    const raw = await api.post<Parameters<typeof mapComment>[0]>(`/issues/${issueId}/comments`, {
       body,
-      createdAt: nowIso(),
-    };
+    });
+    const comment = mapComment(raw);
     set((state) => ({
-      comments: {
-        ...state.comments,
-        [issueId]: [...(state.comments[issueId] ?? []), comment],
-      },
+      comments: { ...state.comments, [issueId]: [...(state.comments[issueId] ?? []), comment] },
     }));
   },
 
-  updateIssue: (issueId, patch) => {
-    set((state) => ({
-      issues: state.issues.map((i) => (i.id === issueId ? { ...i, ...patch } : i)),
-    }));
+  updateIssue: async (issueId, patch) => {
+    const raw = await api.patch<ServerIssue>(`/issues/${issueId}`, {
+      ...patch,
+      priority: patch.priority ? priorityToServer(patch.priority) : undefined,
+    });
+    const updated = mapIssue(raw);
+    set((state) => ({ issues: state.issues.map((i) => (i.id === issueId ? updated : i)) }));
   },
 
-  createIssue: (issue) => {
+  createIssue: async (input) => {
+    const raw = await api.post<ServerIssue>("/issues", {
+      ...input,
+      status: input.status ? statusToServer(input.status) : undefined,
+      priority: input.priority ? priorityToServer(input.priority) : undefined,
+    });
+    const issue = mapIssue(raw);
     set((state) => ({ issues: [issue, ...state.issues] }));
+    return issue;
   },
 
-  logActivity: (issueId, message, author = getCurrentUserSync()) => {
-    const entry: ActivityEntry = { id: id(), author, message, createdAt: nowIso() };
+  toggleFavorite: async (issueId) => {
+    const isFavorite = get().favoriteIds.includes(issueId);
     set((state) => ({
-      activity: {
-        ...state.activity,
-        [issueId]: [entry, ...(state.activity[issueId] ?? [])],
-      },
-    }));
-  },
-
-  toggleFavorite: (issueId) => {
-    set((state) => ({
-      favoriteIds: state.favoriteIds.includes(issueId)
+      favoriteIds: isFavorite
         ? state.favoriteIds.filter((id) => id !== issueId)
         : [...state.favoriteIds, issueId],
     }));
+    try {
+      if (isFavorite) {
+        await api.delete(`/issues/${issueId}/favorite`);
+      } else {
+        await api.post(`/issues/${issueId}/favorite`);
+      }
+    } catch (err) {
+      set((state) => ({
+        favoriteIds: isFavorite
+          ? [...state.favoriteIds, issueId]
+          : state.favoriteIds.filter((id) => id !== issueId),
+      }));
+      throw err;
+    }
   },
 
-  saveDraft: (draft) => {
+  saveDraft: async (input) => {
+    const raw = await api.post<Parameters<typeof mapDraft>[0]>("/drafts", {
+      ...input,
+      priority: priorityToServer(input.priority),
+    });
+    const draft = mapDraft(raw);
     set((state) => ({ drafts: [draft, ...state.drafts] }));
   },
 
-  updateDraft: (draftId, patch) => {
-    set((state) => ({
-      drafts: state.drafts.map((d) => (d.id === draftId ? { ...d, ...patch } : d)),
-    }));
+  updateDraft: async (draftId, patch) => {
+    const raw = await api.patch<Parameters<typeof mapDraft>[0]>(`/drafts/${draftId}`, {
+      ...patch,
+      priority: patch.priority ? priorityToServer(patch.priority) : undefined,
+    });
+    const draft = mapDraft(raw);
+    set((state) => ({ drafts: state.drafts.map((d) => (d.id === draftId ? draft : d)) }));
   },
 
-  deleteDraft: (draftId) => {
+  deleteDraft: async (draftId) => {
+    await api.delete(`/drafts/${draftId}`);
     set((state) => ({ drafts: state.drafts.filter((d) => d.id !== draftId) }));
   },
 
-  publishDraft: (draftId, issue) => {
+  publishDraft: async (draftId) => {
+    const raw = await api.post<ServerIssue>(`/drafts/${draftId}/publish`);
+    const issue = mapIssue(raw);
     set((state) => ({
       issues: [issue, ...state.issues],
       drafts: state.drafts.filter((d) => d.id !== draftId),
     }));
+    return issue;
   },
+
+  reset: () =>
+    set({ issues: [], loaded: false, comments: {}, activity: {}, favoriteIds: [], drafts: [] }),
 }));

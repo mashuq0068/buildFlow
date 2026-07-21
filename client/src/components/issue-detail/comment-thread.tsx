@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { Send } from "lucide-react";
+import { toast } from "sonner";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useCurrentUser } from "@/lib/current-user";
+import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { Comment } from "@/lib/types";
 
@@ -25,11 +27,15 @@ export function CommentThread({ issueId }: { issueId: string }) {
   const currentUser = useCurrentUser();
   const [draft, setDraft] = useState("");
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const body = draft.trim();
     if (!body) return;
-    addComment(issueId, body);
     setDraft("");
+    try {
+      await addComment(issueId, body);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to send message");
+    }
   }
 
   return (
@@ -41,7 +47,7 @@ export function CommentThread({ issueId }: { issueId: string }) {
           </p>
         )}
         {comments.map((comment) => {
-          const isMe = comment.author.name === currentUser?.name;
+          const isMe = comment.author.id === currentUser?.id;
           return (
             <div key={comment.id} className={cn("flex items-end gap-2", isMe && "flex-row-reverse")}>
               <span

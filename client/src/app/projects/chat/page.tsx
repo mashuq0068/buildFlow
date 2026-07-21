@@ -1,16 +1,19 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Send, LayoutGrid } from "lucide-react";
+import { Send, LayoutGrid, Users } from "lucide-react";
+import { toast } from "sonner";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { ProjectAccessGuard } from "@/components/projects/project-access-guard";
+import { ManageMembersModal } from "@/components/projects/manage-members-modal";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useProjectChatStore } from "@/lib/stores/project-chat-store";
 import { useCurrentUser } from "@/lib/current-user";
+import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 function timeAgo(iso: string) {
@@ -25,23 +28,33 @@ function timeAgo(iso: string) {
 
 function ProjectChatContent() {
   const searchParams = useSearchParams();
-  const projectId = searchParams.get("id") ?? "engineering";
+  const projectId = searchParams.get("id") ?? "";
   const projects = useProjectsStore((s) => s.projects);
   const project = projects.find((p) => p.id === projectId);
 
   const messages = useProjectChatStore((s) => s.messages[projectId]) ?? [];
+  const fetchMessages = useProjectChatStore((s) => s.fetchMessages);
   const addMessage = useProjectChatStore((s) => s.addMessage);
   const currentUser = useCurrentUser();
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
 
   const [draft, setDraft] = useState("");
+  const [membersOpen, setMembersOpen] = useState(false);
 
-  function handleSubmit() {
+  useEffect(() => {
+    if (project) fetchMessages(projectId).catch(() => toast.error("Failed to load chat"));
+  }, [project, projectId, fetchMessages]);
+
+  async function handleSubmit() {
     const body = draft.trim();
     if (!body) return;
-    addMessage(projectId, body);
     setDraft("");
+    try {
+      await addMessage(projectId, body);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to send message");
+    }
   }
 
   return (
@@ -53,13 +66,23 @@ function ProjectChatContent() {
           onNewIssue={() => setNewIssueOpen(true)}
           onSearch={() => setCommandPaletteOpen(true)}
           rightExtra={
-            <Link
-              href={`/projects/board?id=${projectId}`}
-              title={`${project?.name ?? "Project"} board`}
-              className="rounded-md p-1.5 text-fg-secondary transition-colors hover:bg-surface-hover hover:text-fg"
-            >
-              <LayoutGrid size={15} />
-            </Link>
+            <>
+              <button
+                type="button"
+                onClick={() => setMembersOpen(true)}
+                title={`${project?.name ?? "Project"} members`}
+                className="rounded-md p-1.5 text-fg-secondary transition-colors hover:bg-surface-hover hover:text-fg"
+              >
+                <Users size={15} />
+              </button>
+              <Link
+                href={`/projects/board?id=${projectId}`}
+                title={`${project?.name ?? "Project"} board`}
+                className="rounded-md p-1.5 text-fg-secondary transition-colors hover:bg-surface-hover hover:text-fg"
+              >
+                <LayoutGrid size={15} />
+              </Link>
+            </>
           }
         />
 
@@ -73,7 +96,7 @@ function ProjectChatContent() {
                 </p>
               )}
               {messages.map((message) => {
-                const isMe = message.author.name === currentUser?.name;
+                const isMe = message.author.id === currentUser?.id;
                 return (
                   <div
                     key={message.id}
@@ -140,6 +163,10 @@ function ProjectChatContent() {
         </div>
         </ProjectAccessGuard>
       </div>
+      <ManageMembersModal
+        project={membersOpen ? project ?? null : null}
+        onOpenChange={(open) => setMembersOpen(open)}
+      />
     </div>
   );
 }

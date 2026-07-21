@@ -13,9 +13,11 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import { toast } from "sonner";
 import { KanbanColumn } from "./kanban-column";
 import { IssueCardOverlay } from "./issue-card-overlay";
 import { useIssuesStore } from "@/lib/stores/issues-store";
+import { ApiError } from "@/lib/api-client";
 import { STATUS_COLUMNS, type Issue, type IssueStatus } from "@/lib/types";
 
 export function KanbanBoard({ issues }: { issues: Issue[] }) {
@@ -76,7 +78,7 @@ export function KanbanBoard({ issues }: { issues: Issue[] }) {
     });
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     const finalColumns = previewColumn;
     setActiveId(null);
@@ -92,21 +94,36 @@ export function KanbanBoard({ issues }: { issues: Issue[] }) {
 
     if (!originalContainer || !finalContainer) return;
 
-    if (originalContainer !== finalContainer) {
-      moveIssue(active.id as string, finalContainer);
-      reorderWithinStatus(finalContainer, finalColumns[finalContainer]);
-      return;
-    }
+    const movedIssue = issuesById[active.id as string];
+    if (!movedIssue) return;
 
-    const overContainer = findContainer(over.id as string) ?? finalContainer;
-    if (overContainer !== finalContainer) return;
+    try {
+      if (originalContainer !== finalContainer) {
+        await moveIssue(active.id as string, finalContainer);
+        await reorderWithinStatus(
+          movedIssue.projectId,
+          finalContainer,
+          finalColumns[finalContainer]
+        );
+        return;
+      }
 
-    const activeIndex = finalColumns[finalContainer].indexOf(active.id as string);
-    const overIndex = finalColumns[finalContainer].indexOf(over.id as string);
-    if (activeIndex !== overIndex && overIndex >= 0) {
-      reorderWithinStatus(finalContainer, arrayMove(finalColumns[finalContainer], activeIndex, overIndex));
-    } else {
-      reorderWithinStatus(finalContainer, finalColumns[finalContainer]);
+      const overContainer = findContainer(over.id as string) ?? finalContainer;
+      if (overContainer !== finalContainer) return;
+
+      const activeIndex = finalColumns[finalContainer].indexOf(active.id as string);
+      const overIndex = finalColumns[finalContainer].indexOf(over.id as string);
+      if (activeIndex !== overIndex && overIndex >= 0) {
+        await reorderWithinStatus(
+          movedIssue.projectId,
+          finalContainer,
+          arrayMove(finalColumns[finalContainer], activeIndex, overIndex)
+        );
+      } else {
+        await reorderWithinStatus(movedIssue.projectId, finalContainer, finalColumns[finalContainer]);
+      }
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update the board");
     }
   }
 

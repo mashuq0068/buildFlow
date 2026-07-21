@@ -5,25 +5,20 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useMembersStore } from "@/lib/stores/members-store";
+import { useWorkspaceStore } from "@/lib/stores/workspace-store";
+import { ApiError } from "@/lib/api-client";
 import type { Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-function initialsFor(name: string) {
-  const parts = name.trim().split(/\s+/);
-  return parts
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
-}
-
 export function AddMemberModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const members = useMembersStore((s) => s.members);
   const addMember = useMembersStore((s) => s.addMember);
+  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [title, setTitle] = useState("");
   const [role, setRole] = useState<Role>("member");
+  const [creating, setCreating] = useState(false);
 
   function resetForm() {
     setName("");
@@ -32,24 +27,31 @@ export function AddMemberModal({ open, onOpenChange }: { open: boolean; onOpenCh
     setRole("member");
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    if (members.some((m) => m.name.toLowerCase() === trimmed.toLowerCase())) {
-      toast.error("A member with that name already exists");
-      return;
-    }
+    const trimmedEmail = email.trim();
+    if (!trimmed || !trimmedEmail || !currentWorkspaceId) return;
 
-    addMember({
-      name: trimmed,
-      initials: initialsFor(trimmed),
-      role,
-      email: email.trim() || undefined,
-      title: title.trim() || undefined,
-    });
-    toast.success(`${trimmed} added to the workspace`);
-    resetForm();
-    onOpenChange(false);
+    setCreating(true);
+    try {
+      const { member, tempPassword } = await addMember(currentWorkspaceId, {
+        name: trimmed,
+        email: trimmedEmail,
+        title: title.trim() || undefined,
+        role,
+      });
+      toast.success(
+        tempPassword
+          ? `${member.name} added — temporary password: ${tempPassword}`
+          : `${member.name} added to the workspace`
+      );
+      resetForm();
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to add member");
+    } finally {
+      setCreating(false);
+    }
   }
 
   return (
@@ -134,7 +136,8 @@ export function AddMemberModal({ open, onOpenChange }: { open: boolean; onOpenCh
                   </div>
 
                   <p className="text-[11px] leading-relaxed text-fg-tertiary">
-                    Demo only — this adds a local member record, no invite email is sent.
+                    If this email isn&apos;t registered yet, a new account is created with a
+                    temporary password — no invite email is sent, so share it directly.
                   </p>
                 </div>
 
@@ -150,10 +153,10 @@ export function AddMemberModal({ open, onOpenChange }: { open: boolean; onOpenCh
                   <button
                     type="button"
                     onClick={handleCreate}
-                    disabled={!name.trim()}
+                    disabled={!name.trim() || !email.trim() || creating}
                     className={cn(
                       "rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90",
-                      !name.trim() && "opacity-40"
+                      (!name.trim() || !email.trim() || creating) && "opacity-40"
                     )}
                   >
                     Add member

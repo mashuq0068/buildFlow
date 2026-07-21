@@ -27,8 +27,8 @@ const STATUS_COLORS: Record<string, string> = {
   done: "#4cb782",
 };
 
-function personStats(issues: Issue[], name: string) {
-  const owned = issues.filter((i) => i.assignee?.name === name);
+function personStats(issues: Issue[], personId: string) {
+  const owned = issues.filter((i) => i.assignee?.id === personId);
   const done = owned.filter((i) => i.status === "done").length;
   return { total: owned.length, done };
 }
@@ -41,7 +41,7 @@ export default function AnalyticsPage() {
   const role = currentUser?.role ?? "member";
   const members = useMembersStore((s) => s.members);
 
-  const myIssues = issues.filter((i) => i.assignee?.name === currentUser?.name);
+  const myIssues = issues.filter((i) => i.assignee?.id === currentUser?.id);
   const myDone = myIssues.filter((i) => i.status === "done").length;
   const myInProgress = myIssues.filter((i) => i.status === "in_progress").length;
 
@@ -60,7 +60,7 @@ export default function AnalyticsPage() {
 
   const teamRows = members.map((person) => ({
     person,
-    ...personStats(issues, person.name),
+    ...personStats(issues, person.id),
   }));
 
   return (
@@ -115,7 +115,7 @@ export default function AnalyticsPage() {
                   </thead>
                   <tbody>
                     {teamRows.map((row) => (
-                      <tr key={row.person.name} className="border-b border-border last:border-0">
+                      <tr key={row.person.id} className="border-b border-border last:border-0">
                         <td className="flex items-center gap-2 px-3 py-2 text-fg">
                           <span className="flex size-5 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium ring-1 ring-border">
                             {row.person.initials}

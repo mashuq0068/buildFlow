@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
+import { HttpError } from "../lib/http-error";
 
 export function globalErrorHandler(
   err: unknown,
@@ -8,6 +9,10 @@ export function globalErrorHandler(
   res: Response,
   _next: NextFunction
 ) {
+  if (err instanceof HttpError) {
+    return res.status(err.statusCode).json({ success: false, message: err.message });
+  }
+
   if (err instanceof ZodError) {
     return res.status(400).json({
       success: false,

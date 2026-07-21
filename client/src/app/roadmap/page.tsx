@@ -8,8 +8,6 @@ import { AddToRoadmapModal } from "@/components/roadmap/add-to-roadmap-modal";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useGoalsStore } from "@/lib/stores/goals-store";
-import { useCurrentUser } from "@/lib/current-user";
-import { isProjectVisible } from "@/lib/project-visibility";
 
 const TIMELINE_START = new Date("2026-07-01").getTime();
 const TIMELINE_END = new Date("2026-09-30").getTime();
@@ -31,11 +29,7 @@ function toPercent(dateStr: string) {
 export default function RoadmapPage() {
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
-  const currentUser = useCurrentUser();
-  const allProjects = useProjectsStore((s) => s.projects);
-  const projects = allProjects.filter((p) =>
-    isProjectVisible(p, currentUser?.name, currentUser?.role)
-  );
+  const projects = useProjectsStore((s) => s.projects);
   const goals = useGoalsStore((s) => s.goals);
   const [addToRoadmapOpen, setAddToRoadmapOpen] = useState(false);
 

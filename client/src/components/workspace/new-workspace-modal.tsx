@@ -5,17 +5,10 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
+import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 const COLOR_OPTIONS = ["#6e79d6", "#e8a53f", "#4cb782", "#5e9bd6", "#c25b8f", "#9b6bd6"];
-
-function slugify(name: string) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 export function NewWorkspaceModal({
   open,
@@ -24,33 +17,32 @@ export function NewWorkspaceModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const workspaces = useWorkspaceStore((s) => s.workspaces);
   const createWorkspace = useWorkspaceStore((s) => s.createWorkspace);
 
   const [name, setName] = useState("");
   const [color, setColor] = useState(COLOR_OPTIONS[0]);
+  const [creating, setCreating] = useState(false);
 
   function resetForm() {
     setName("");
     setColor(COLOR_OPTIONS[0]);
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     const trimmed = name.trim();
     if (!trimmed) return;
 
-    let id = slugify(trimmed);
-    if (!id) id = `workspace-${Date.now()}`;
-    let suffix = 2;
-    while (workspaces.some((w) => w.id === id)) {
-      id = `${slugify(trimmed)}-${suffix}`;
-      suffix += 1;
+    setCreating(true);
+    try {
+      const workspace = await createWorkspace(trimmed, color);
+      toast.success(`${workspace.name} workspace created`);
+      resetForm();
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to create workspace");
+    } finally {
+      setCreating(false);
     }
-
-    createWorkspace({ id, name: trimmed, slug: id, color });
-    toast.success(`${trimmed} workspace created`);
-    resetForm();
-    onOpenChange(false);
   }
 
   return (
@@ -100,11 +92,6 @@ export function NewWorkspaceModal({
                       placeholder="Acme Studio"
                       className="mt-1 w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-fg placeholder:text-fg-tertiary outline-none"
                     />
-                    {name.trim() && (
-                      <p className="mt-1 text-[11px] text-fg-tertiary">
-                        linear-clone.app/{slugify(name)}
-                      </p>
-                    )}
                   </div>
 
                   <div>
@@ -139,10 +126,10 @@ export function NewWorkspaceModal({
                   <button
                     type="button"
                     onClick={handleCreate}
-                    disabled={!name.trim()}
+                    disabled={!name.trim() || creating}
                     className={cn(
                       "rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90",
-                      !name.trim() && "opacity-40"
+                      (!name.trim() || creating) && "opacity-40"
                     )}
                   >
                     Create workspace

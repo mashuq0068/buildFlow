@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { NewCycleModal } from "@/components/cycles/new-cycle-modal";
@@ -10,8 +10,7 @@ import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useCyclesStore } from "@/lib/stores/cycles-store";
-import { useCurrentUser } from "@/lib/current-user";
-import { isProjectVisible } from "@/lib/project-visibility";
+import type { Cycle } from "@/lib/types";
 
 function formatRange(start: string, end: string) {
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
@@ -20,19 +19,14 @@ function formatRange(start: string, end: string) {
 
 export default function CyclesPage() {
   const issues = useIssuesStore((s) => s.issues);
-  const allProjects = useProjectsStore((s) => s.projects);
-  const currentUser = useCurrentUser();
-  const projects = allProjects.filter((p) =>
-    isProjectVisible(p, currentUser?.name, currentUser?.role)
-  );
-  const visibleProjectIds = new Set(projects.map((p) => p.id));
-  const allCycles = useCyclesStore((s) => s.cycles);
-  const cycles = allCycles.filter((c) => visibleProjectIds.has(c.projectId));
+  const projects = useProjectsStore((s) => s.projects);
+  const cycles = useCyclesStore((s) => s.cycles);
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const [newCycleOpen, setNewCycleOpen] = useState(false);
+  const [editingCycle, setEditingCycle] = useState<Cycle | null>(null);
 
-  const today = "2026-07-19";
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg">
@@ -69,13 +63,27 @@ export default function CyclesPage() {
                   href={`/cycles/board?id=${cycle.id}`}
                   className="flex flex-col rounded-md border border-border bg-surface p-4 transition-colors hover:bg-surface-hover"
                 >
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-medium text-fg">{cycle.name}</h2>
-                    {isActive && (
-                      <span className="rounded-full bg-surface-hover px-2 py-0.5 text-[10px] font-medium text-fg">
-                        Active
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="min-w-0 truncate text-sm font-medium text-fg">{cycle.name}</h2>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {isActive && (
+                        <span className="rounded-full bg-surface-hover px-2 py-0.5 text-[10px] font-medium text-fg">
+                          Active
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        aria-label="Edit cycle"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setEditingCycle(cycle);
+                        }}
+                        className="rounded p-1 text-fg-tertiary transition-colors hover:bg-surface-hover hover:text-fg"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    </div>
                   </div>
                   <p className="mt-1 text-xs text-fg-secondary">
                     {project?.name} · {formatRange(cycle.startDate, cycle.endDate)}
@@ -102,6 +110,13 @@ export default function CyclesPage() {
         </main>
       </div>
       <NewCycleModal open={newCycleOpen} onOpenChange={setNewCycleOpen} />
+      <NewCycleModal
+        open={Boolean(editingCycle)}
+        onOpenChange={(open) => {
+          if (!open) setEditingCycle(null);
+        }}
+        editCycle={editingCycle}
+      />
     </div>
   );
 }

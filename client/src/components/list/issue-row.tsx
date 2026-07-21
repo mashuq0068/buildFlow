@@ -60,7 +60,7 @@ export function IssueRow({ issue }: { issue: Issue }) {
         <div className="hidden shrink-0 gap-1 sm:flex">
           {issue.labels.map((label) => (
             <span
-              key={label.name}
+              key={label.id}
               className="flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] text-fg-secondary"
             >
               <span className="size-1.5 rounded-full" style={{ backgroundColor: label.color }} />

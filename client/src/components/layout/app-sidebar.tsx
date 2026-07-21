@@ -37,9 +37,7 @@ import { useUIStore } from "@/lib/stores/ui-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { useProjectsStore } from "@/lib/stores/projects-store";
-import { useMembersStore } from "@/lib/stores/members-store";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
-import { isProjectVisible } from "@/lib/project-visibility";
 import { NewWorkspaceModal } from "@/components/workspace/new-workspace-modal";
 
 const NAV_SECTIONS = [
@@ -91,14 +89,9 @@ export function AppSidebar() {
   const router = useRouter();
 
   const currentUser = useCurrentUser();
-  const login = useAuthStore((s) => s.login);
   const logout = useAuthStore((s) => s.logout);
-  const members = useMembersStore((s) => s.members);
 
-  const allProjects = useProjectsStore((s) => s.projects);
-  const projects = allProjects.filter((p) =>
-    isProjectVisible(p, currentUser?.name, currentUser?.role)
-  );
+  const projects = useProjectsStore((s) => s.projects);
 
   const workspaces = useWorkspaceStore((s) => s.workspaces);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
@@ -106,12 +99,12 @@ export function AppSidebar() {
   const workspace = workspaces.find((w) => w.id === currentWorkspaceId) ?? workspaces[0];
   const [newWorkspaceOpen, setNewWorkspaceOpen] = useState(false);
 
-  const otherMembers = members.filter((m) => m.name !== currentUser?.name);
-
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     router.push("/login");
   }
+
+  if (!workspace) return null;
 
   return (
     <>
@@ -370,25 +363,6 @@ export function AppSidebar() {
                     <span className="capitalize">{currentUser?.role}</span>
                   </p>
                 </div>
-                <DropdownMenu.Separator className="my-1 h-px bg-border" />
-                <div className="px-2 py-1 text-[11px] font-medium text-fg-secondary">
-                  Switch user
-                </div>
-                {otherMembers.map((m) => (
-                  <DropdownMenu.Item
-                    key={m.name}
-                    onSelect={() => login(m.name)}
-                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-fg outline-none data-[highlighted]:bg-surface-hover"
-                  >
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium ring-1 ring-border">
-                      {m.initials}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">{m.name}</span>
-                    <span className="shrink-0 text-[10px] capitalize text-fg-tertiary">
-                      {m.role}
-                    </span>
-                  </DropdownMenu.Item>
-                ))}
                 <DropdownMenu.Separator className="my-1 h-px bg-border" />
                 <DropdownMenu.Item
                   onSelect={handleLogout}

@@ -1,19 +1,38 @@
 import { create } from "zustand";
-import type { NotificationItem } from "@/lib/mock-data";
-import { INITIAL_NOTIFICATIONS } from "@/lib/mock-data";
+import { api } from "@/lib/api-client";
+import { mapNotification, type NotificationItem } from "@/lib/api/mappers";
+
+export type { NotificationItem };
 
 interface NotificationsState {
   notifications: NotificationItem[];
-  markRead: (id: string) => void;
-  markAllRead: () => void;
+  loaded: boolean;
+  fetchNotifications: () => Promise<void>;
+  markRead: (id: string) => Promise<void>;
+  markAllRead: () => Promise<void>;
+  reset: () => void;
 }
 
 export const useNotificationsStore = create<NotificationsState>()((set) => ({
-  notifications: INITIAL_NOTIFICATIONS,
-  markRead: (id) =>
+  notifications: [],
+  loaded: false,
+
+  fetchNotifications: async () => {
+    const raw = await api.get<Parameters<typeof mapNotification>[0][]>("/notifications");
+    set({ notifications: raw.map(mapNotification), loaded: true });
+  },
+
+  markRead: async (id) => {
     set((state) => ({
       notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
-    })),
-  markAllRead: () =>
-    set((state) => ({ notifications: state.notifications.map((n) => ({ ...n, read: true })) })),
+    }));
+    await api.patch(`/notifications/${id}/read`);
+  },
+
+  markAllRead: async () => {
+    set((state) => ({ notifications: state.notifications.map((n) => ({ ...n, read: true })) }));
+    await api.patch("/notifications/read-all");
+  },
+
+  reset: () => set({ notifications: [], loaded: false }),
 }));

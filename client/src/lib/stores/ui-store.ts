@@ -39,9 +39,8 @@ export const useUIStore = create<UIState>()(
       closeIssue: () => set({ selectedIssueId: null }),
 
       newIssueOpen: false,
-      newIssueProjectId: "engineering",
-      openNewIssue: (projectId = "engineering") =>
-        set({ newIssueOpen: true, newIssueProjectId: projectId }),
+      newIssueProjectId: "",
+      openNewIssue: (projectId = "") => set({ newIssueOpen: true, newIssueProjectId: projectId }),
       setNewIssueOpen: (open) => set({ newIssueOpen: open }),
 
       commandPaletteOpen: false,

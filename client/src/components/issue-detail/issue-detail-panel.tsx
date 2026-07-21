@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Paperclip, Sparkles, MessageSquare, History as HistoryIcon, Star } from "lucide-react";
+import { toast } from "sonner";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useIssuesStore } from "@/lib/stores/issues-store";
+import { useMembersStore } from "@/lib/stores/members-store";
+import { ApiError } from "@/lib/api-client";
 import { STATUS_COLUMNS, PRIORITY_LABEL, type IssuePriority, type IssueStatus } from "@/lib/types";
 import { CommentThread } from "./comment-thread";
 import { ActivityTab } from "./activity-tab";
@@ -19,13 +22,46 @@ export function IssueDetailPanel() {
   const issue = useIssuesStore((s) => s.issues.find((i) => i.id === selectedIssueId));
   const moveIssue = useIssuesStore((s) => s.moveIssue);
   const updateIssue = useIssuesStore((s) => s.updateIssue);
+  const loadIssueDetail = useIssuesStore((s) => s.loadIssueDetail);
   const commentCount = useIssuesStore((s) => s.comments[selectedIssueId ?? ""]?.length ?? 0);
   const isFavorite = useIssuesStore((s) => s.favoriteIds.includes(selectedIssueId ?? ""));
   const toggleFavorite = useIssuesStore((s) => s.toggleFavorite);
+  const members = useMembersStore((s) => s.members);
 
   const [tab, setTab] = useState<"comments" | "activity">("comments");
 
   const open = Boolean(issue);
+
+  useEffect(() => {
+    if (selectedIssueId) {
+      loadIssueDetail(selectedIssueId).catch(() => {
+        toast.error("Failed to load issue details");
+      });
+    }
+  }, [selectedIssueId, loadIssueDetail]);
+
+  async function handleUpdate(patch: Parameters<typeof updateIssue>[1]) {
+    if (!issue) return;
+    try {
+      await updateIssue(issue.id, patch);
+      // priority/assignee changes log server-side activity — refresh so the Activity tab reflects it live
+      if ("priority" in patch || "assigneeId" in patch) {
+        loadIssueDetail(issue.id).catch(() => {});
+      }
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update issue");
+    }
+  }
+
+  async function handleMove(status: IssueStatus) {
+    if (!issue) return;
+    try {
+      await moveIssue(issue.id, status);
+      loadIssueDetail(issue.id).catch(() => {});
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to move issue");
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -76,13 +112,13 @@ export function IssueDetailPanel() {
             <div className="flex-1 overflow-y-auto px-4 py-4">
               <input
                 value={issue.title}
-                onChange={(e) => updateIssue(issue.id, { title: e.target.value })}
+                onChange={(e) => handleUpdate({ title: e.target.value })}
                 className="w-full border-none bg-transparent text-lg font-semibold text-fg outline-none"
               />
 
               <RichTextEditor
                 value={issue.description ?? ""}
-                onChange={(html) => updateIssue(issue.id, { description: html })}
+                onChange={(html) => handleUpdate({ description: html })}
                 placeholder="Add a description..."
                 className="mt-4"
                 minHeight={60}
@@ -106,7 +142,7 @@ export function IssueDetailPanel() {
                 <PropertyRow label="Status">
                   <select
                     value={issue.status}
-                    onChange={(e) => moveIssue(issue.id, e.target.value as IssueStatus)}
+                    onChange={(e) => handleMove(e.target.value as IssueStatus)}
                     className="rounded border border-border bg-surface px-2 py-1 text-xs text-fg outline-none"
                   >
                     {STATUS_COLUMNS.map((c) => (
@@ -120,9 +156,7 @@ export function IssueDetailPanel() {
                 <PropertyRow label="Priority">
                   <select
                     value={issue.priority}
-                    onChange={(e) =>
-                      updateIssue(issue.id, { priority: e.target.value as IssuePriority })
-                    }
+                    onChange={(e) => handleUpdate({ priority: e.target.value as IssuePriority })}
                     className="rounded border border-border bg-surface px-2 py-1 text-xs text-fg outline-none"
                   >
                     {PRIORITIES.map((p) => (
@@ -134,16 +168,18 @@ export function IssueDetailPanel() {
                 </PropertyRow>
 
                 <PropertyRow label="Assignee">
-                  {issue.assignee ? (
-                    <span className="flex items-center gap-1.5 text-xs text-fg">
-                      <span className="flex size-5 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium ring-1 ring-border">
-                        {issue.assignee.initials}
-                      </span>
-                      {issue.assignee.name}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-fg-tertiary">Unassigned</span>
-                  )}
+                  <select
+                    value={issue.assignee?.id ?? ""}
+                    onChange={(e) => handleUpdate({ assigneeId: e.target.value || null })}
+                    className="rounded border border-border bg-surface px-2 py-1 text-xs text-fg outline-none"
+                  >
+                    <option value="">Unassigned</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
                 </PropertyRow>
 
                 {issue.labels && issue.labels.length > 0 && (
@@ -151,7 +187,7 @@ export function IssueDetailPanel() {
                     <div className="flex flex-wrap justify-end gap-1">
                       {issue.labels.map((label) => (
                         <span
-                          key={label.name}
+                          key={label.id}
                           className="flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] text-fg-secondary"
                         >
                           <span
@@ -170,7 +206,7 @@ export function IssueDetailPanel() {
                     <div className="flex flex-col items-end gap-1">
                       {issue.attachments.map((attachment) => (
                         <span
-                          key={attachment.name}
+                          key={attachment.id}
                           className="flex items-center gap-1.5 text-xs text-fg-secondary"
                         >
                           <Paperclip size={12} />

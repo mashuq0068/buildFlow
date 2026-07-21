@@ -29,25 +29,61 @@ enum IssuePriority {
   URGENT
 }
 
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+}
+
 model User {
-  id            String            @id @default(cuid())
-  name          String
-  email         String            @unique
-  avatarUrl     String?
-  createdAt     DateTime          @default(now())
-  memberships   WorkspaceMember[]
-  assignedIssues Issue[]          @relation("IssueAssignee")
-  createdIssues Issue[]           @relation("IssueCreator")
-  comments      Comment[]
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  initials     String
+  title        String?
+  createdAt    DateTime @default(now())
+
+  memberships        WorkspaceMember[]
+  projectMemberships ProjectMember[]
+  assignedIssues     Issue[]              @relation("IssueAssignee")
+  createdIssues      Issue[]              @relation("IssueCreator")
+  ledProjects        Project[]            @relation("ProjectLead")
+  ownedGoals         Goal[]               @relation("GoalOwner")
+  comments           Comment[]
+  activity           ActivityLog[]
+  chatMessages       ProjectChatMessage[]
+  drafts             Draft[]
+  favorites          Favorite[]
+  notificationsReceived Notification[]    @relation("NotificationRecipient")
+  notificationsSent  Notification[]       @relation("NotificationActor")
+  refreshTokens      RefreshToken[]
+}
+
+model RefreshToken {
+  id                  String    @id @default(cuid())
+  tokenHash           String    @unique
+  user                User      @relation(fields: [userId], references: [id])
+  userId              String
+  expiresAt           DateTime
+  revokedAt           DateTime?
+  replacedByTokenHash String?
+  createdAt           DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Workspace {
-  id        String            @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  slug      String            @unique
-  createdAt DateTime          @default(now())
-  members   WorkspaceMember[]
-  teams     Team[]
+  slug      String   @unique
+  color     String   @default("#6e79d6")
+  createdAt DateTime @default(now())
+
+  members  WorkspaceMember[]
+  projects Project[]
+  labels   Label[]
 }
 
 model WorkspaceMember {
@@ -55,68 +91,128 @@ model WorkspaceMember {
   role        Role      @default(MEMBER)
   user        User      @relation(fields: [userId], references: [id])
   userId      String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workspaceId String
   createdAt   DateTime  @default(now())
 
   @@unique([userId, workspaceId])
 }
 
-model Team {
-  id          String    @id @default(cuid())
+model Project {
+  id          String        @id @default(cuid())
   name        String
-  key         String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  teamKey     String
+  color       String        @default("#6e79d6")
+  summary     String?
+  status      ProjectStatus @default(PLANNING)
+  startDate   DateTime?
+  targetDate  DateTime?
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workspaceId String
-  projects    Project[]
-  createdAt   DateTime  @default(now())
+  lead        User?         @relation("ProjectLead", fields: [leadId], references: [id])
+  leadId      String?
+  createdAt   DateTime      @default(now())
 
-  @@unique([workspaceId, key])
+  members      ProjectMember[]
+  issues       Issue[]
+  cycles       Cycle[]
+  goals        Goal[]
+  drafts       Draft[]
+  chatMessages ProjectChatMessage[]
+
+  @@unique([workspaceId, teamKey])
 }
 
-model Project {
+model ProjectMember {
   id        String   @id @default(cuid())
-  name      String
-  summary   String?
-  team      Team     @relation(fields: [teamId], references: [id])
-  teamId    String
-  issues    Issue[]
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
   createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+model Cycle {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  issues      Issue[]
+  createdAt   DateTime @default(now())
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  targetDate  DateTime
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  owner       User?    @relation("GoalOwner", fields: [ownerId], references: [id])
+  ownerId     String?
+  createdAt   DateTime @default(now())
 }
 
 model Label {
-  id      String  @id @default(cuid())
-  name    String
-  color   String
-  issues  IssueLabel[]
+  id          String       @id @default(cuid())
+  name        String
+  color       String
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId String
+  issues      IssueLabel[]
+
+  @@unique([workspaceId, name])
 }
 
 model Issue {
-  id          String        @id @default(cuid())
-  identifier  Int           @default(autoincrement())
-  title       String
-  description String?
-  status      IssueStatus   @default(BACKLOG)
-  priority    IssuePriority @default(NO_PRIORITY)
-  project     Project       @relation(fields: [projectId], references: [id])
-  projectId   String
-  assignee    User?         @relation("IssueAssignee", fields: [assigneeId], references: [id])
-  assigneeId  String?
-  creator     User          @relation("IssueCreator", fields: [creatorId], references: [id])
-  creatorId   String
-  parent      Issue?        @relation("SubIssues", fields: [parentId], references: [id])
-  parentId    String?
-  subIssues   Issue[]       @relation("SubIssues")
-  labels      IssueLabel[]
-  comments    Comment[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id                   String        @id @default(cuid())
+  identifier           Int
+  title                String
+  description          String?
+  status               IssueStatus   @default(BACKLOG)
+  priority             IssuePriority @default(NO_PRIORITY)
+  position             Int           @default(0)
+  project              Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId            String
+  cycle                Cycle?        @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  cycleId              String?
+  assignee             User?         @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  assigneeId           String?
+  creator              User          @relation("IssueCreator", fields: [creatorId], references: [id])
+  creatorId            String
+  parent               Issue?        @relation("SubIssues", fields: [parentId], references: [id], onDelete: SetNull)
+  parentId             String?
+  subIssues            Issue[]       @relation("SubIssues")
+  labels               IssueLabel[]
+  comments             Comment[]
+  activity             ActivityLog[]
+  attachments          Attachment[]
+  favoritedBy          Favorite[]
+  aiSuggestedLabels    String[]      @default([])
+  aiSuggestedReasoning String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@unique([projectId, identifier])
+}
+
+model Attachment {
+  id      String @id @default(cuid())
+  name    String
+  size    String
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issueId String
 }
 
 model IssueLabel {
-  issue   Issue  @relation(fields: [issueId], references: [id])
+  issue   Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
   issueId String
-  label   Label  @relation(fields: [labelId], references: [id])
+  label   Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
   labelId String
 
   @@id([issueId, labelId])
@@ -125,9 +221,65 @@ model IssueLabel {
 model Comment {
   id        String   @id @default(cuid())
   body      String
-  issue     Issue    @relation(fields: [issueId], references: [id])
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
   issueId   String
   author    User     @relation(fields: [authorId], references: [id])
   authorId  String
   createdAt DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  message   String
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issueId   String
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+  createdAt DateTime @default(now())
+}
+
+model ProjectChatMessage {
+  id        String   @id @default(cuid())
+  body      String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+  createdAt DateTime @default(now())
+}
+
+model Draft {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  priority    IssuePriority @default(NO_PRIORITY)
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  author      User          @relation(fields: [authorId], references: [id])
+  authorId    String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issueId   String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, issueId])
+}
+
+model Notification {
+  id              String    @id @default(cuid())
+  recipient       User      @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  recipientId     String
+  actor           User      @relation("NotificationActor", fields: [actorId], references: [id])
+  actorId         String
+  message         String
+  issueIdentifier String?
+  readAt          DateTime?
+  createdAt       DateTime  @default(now())
 }

@@ -10,46 +10,44 @@ import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useMembersStore } from "@/lib/stores/members-store";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { api, ApiError } from "@/lib/api-client";
 import {
   STATUS_COLUMNS,
   PRIORITY_LABEL,
-  type Issue,
-  type Project,
   type IssuePriority,
   type IssueStatus,
 } from "@/lib/types";
 import { cn, isEmptyHtml } from "@/lib/utils";
 
 const PRIORITIES: IssuePriority[] = ["no_priority", "low", "medium", "high", "urgent"];
-
-function nextIdentifier(issues: Issue[], projects: Project[], projectId: string) {
-  const project = projects.find((p) => p.id === projectId);
-  const prefix = project?.teamKey ?? "ENG";
-  const max = issues
-    .filter((i) => i.projectId === projectId)
-    .reduce((acc, issue) => {
-      const match = issue.identifier.match(/-(\d+)$/);
-      return match ? Math.max(acc, Number(match[1])) : acc;
-    }, 0);
-  return `${prefix}-${max + 1}`;
-}
+const LABEL_COLOR: Record<string, string> = {
+  Infra: "#5e9bd6",
+  "CI/CD": "#5e9bd6",
+  Frontend: "#e8a53f",
+  Backend: "#c25b8f",
+  Product: "#8b8fa3",
+};
 
 export function NewIssueModal() {
   const open = useUIStore((s) => s.newIssueOpen);
   const setOpen = useUIStore((s) => s.setNewIssueOpen);
-  const newIssueProjectId = useUIStore((s) => s.newIssueProjectId);
-  const issues = useIssuesStore((s) => s.issues);
+  const requestedProjectId = useUIStore((s) => s.newIssueProjectId);
   const createIssue = useIssuesStore((s) => s.createIssue);
   const saveDraft = useIssuesStore((s) => s.saveDraft);
   const projects = useProjectsStore((s) => s.projects);
   const ASSIGNEE_OPTIONS = useMembersStore((s) => s.members);
 
+  const newIssueProjectId = projects.some((p) => p.id === requestedProjectId)
+    ? requestedProjectId
+    : projects[0]?.id ?? "";
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<IssueStatus>("backlog");
   const [priority, setPriority] = useState<IssuePriority>("no_priority");
-  const [assigneeName, setAssigneeName] = useState<string>("");
+  const [assigneeId, setAssigneeId] = useState<string>("");
   const [createMore, setCreateMore] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<{ labels: string[]; reasoning: string } | null>(
@@ -61,76 +59,77 @@ export function NewIssueModal() {
     setDescription("");
     setStatus("backlog");
     setPriority("no_priority");
-    setAssigneeName("");
+    setAssigneeId("");
     setAiSuggestion(null);
   }
 
-  function handleAiSuggest() {
+  async function handleAiSuggest() {
     if (!title.trim()) return;
     setAiLoading(true);
     setAiSuggestion(null);
-    window.setTimeout(() => {
-      const guessedLabels = /ci|pipeline|deploy|infra/i.test(title)
-        ? ["Infra", "CI/CD"]
-        : /ui|frontend|component|design/i.test(title)
-          ? ["Frontend"]
-          : /api|server|database|schema/i.test(title)
-            ? ["Backend"]
-            : ["Product"];
-      setAiSuggestion({
-        labels: guessedLabels,
-        reasoning: `Based on similar past issue titles, this looks like a ${guessedLabels.join(
-          "/"
-        )} issue. Suggested priority: ${title.length > 40 ? "Medium" : "Low"}.`,
+    try {
+      const result = await api.post<{ labels: string[]; reasoning: string }>("/issues/ai-suggest", {
+        title,
       });
+      setAiSuggestion(result);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to get AI suggestion");
+    } finally {
       setAiLoading(false);
-    }, 700);
+    }
   }
 
-  function handleSaveDraft() {
+  async function handleSaveDraft() {
     const trimmed = title.trim();
-    if (!trimmed) return;
+    if (!trimmed || !newIssueProjectId) return;
 
-    saveDraft({
-      id: Math.random().toString(36).slice(2, 10),
-      title: trimmed,
-      description: isEmptyHtml(description) ? undefined : description,
-      projectId: newIssueProjectId,
-      priority,
-      updatedAt: new Date().toISOString(),
-    });
-
-    toast.success("Saved to drafts");
-    resetForm();
-    setOpen(false);
-  }
-
-  function handleCreate() {
-    const trimmed = title.trim();
-    if (!trimmed) return;
-
-    const assignee = ASSIGNEE_OPTIONS.find((p) => p.name === assigneeName);
-    const identifier = nextIdentifier(issues, projects, newIssueProjectId);
-
-    createIssue({
-      id: Math.random().toString(36).slice(2, 10),
-      identifier,
-      title: trimmed,
-      description: isEmptyHtml(description) ? undefined : description,
-      status,
-      priority,
-      projectId: newIssueProjectId,
-      assignee,
-      labels: aiSuggestion ? aiSuggestion.labels.map((name) => ({ name, color: "#8b8fa3" })) : undefined,
-    });
-
-    toast.success(`${identifier} created`);
-
-    if (createMore) {
-      resetForm();
-    } else {
+    try {
+      await saveDraft({
+        title: trimmed,
+        description: isEmptyHtml(description) ? undefined : description,
+        projectId: newIssueProjectId,
+        priority,
+      });
+      toast.success("Saved to drafts");
       resetForm();
       setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to save draft");
+    }
+  }
+
+  async function handleCreate() {
+    const trimmed = title.trim();
+    if (!trimmed || !newIssueProjectId) return;
+
+    setSubmitting(true);
+    try {
+      const issue = await createIssue({
+        title: trimmed,
+        description: isEmptyHtml(description) ? undefined : description,
+        status,
+        priority,
+        projectId: newIssueProjectId,
+        assigneeId: assigneeId || undefined,
+        labels: aiSuggestion
+          ? aiSuggestion.labels.map((name) => ({ name, color: LABEL_COLOR[name] ?? "#8b8fa3" }))
+          : undefined,
+        aiSuggestedLabels: aiSuggestion?.labels,
+        aiSuggestedReasoning: aiSuggestion?.reasoning,
+      });
+
+      toast.success(`${issue.identifier} created`);
+
+      if (createMore) {
+        resetForm();
+      } else {
+        resetForm();
+        setOpen(false);
+      }
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to create issue");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -168,7 +167,7 @@ export function NewIssueModal() {
                     {projects.find((p) => p.id === newIssueProjectId)?.name ?? "Engineering"}
                   </Dialog.Title>
                   <span className="text-xs text-fg-secondary">
-                    {nextIdentifier(issues, projects, newIssueProjectId)}
+                    {projects.find((p) => p.id === newIssueProjectId)?.teamKey ?? ""}
                   </span>
                 </div>
                 <Dialog.Description className="sr-only">
@@ -254,13 +253,13 @@ export function NewIssueModal() {
 
                     <PropertyField label="Assignee">
                       <select
-                        value={assigneeName}
-                        onChange={(e) => setAssigneeName(e.target.value)}
+                        value={assigneeId}
+                        onChange={(e) => setAssigneeId(e.target.value)}
                         className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-fg outline-none"
                       >
                         <option value="">Unassigned</option>
                         {ASSIGNEE_OPTIONS.map((p) => (
-                          <option key={p.name} value={p.name}>
+                          <option key={p.id} value={p.id}>
                             {p.name}
                           </option>
                         ))}
@@ -300,10 +299,10 @@ export function NewIssueModal() {
                     <button
                       type="button"
                       onClick={handleCreate}
-                      disabled={!title.trim()}
+                      disabled={!title.trim() || submitting}
                       className={cn(
                         "rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90",
-                        !title.trim() && "opacity-40"
+                        (!title.trim() || submitting) && "opacity-40"
                       )}
                     >
                       Create issue

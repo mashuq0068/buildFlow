@@ -7,16 +7,10 @@ import { AppTopbar } from "@/components/layout/app-topbar";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
-import { useCurrentUser } from "@/lib/current-user";
-import { isProjectVisible } from "@/lib/project-visibility";
 
 export default function ProjectsPage() {
   const issues = useIssuesStore((s) => s.issues);
-  const allProjects = useProjectsStore((s) => s.projects);
-  const currentUser = useCurrentUser();
-  const projects = allProjects.filter((p) =>
-    isProjectVisible(p, currentUser?.name, currentUser?.role)
-  );
+  const projects = useProjectsStore((s) => s.projects);
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const setNewProjectOpen = useUIStore((s) => s.setNewProjectOpen);

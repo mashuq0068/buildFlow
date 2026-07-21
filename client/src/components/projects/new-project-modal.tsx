@@ -7,7 +7,9 @@ import { toast } from "sonner";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useMembersStore } from "@/lib/stores/members-store";
+import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { useCurrentUser } from "@/lib/current-user";
+import { ApiError } from "@/lib/api-client";
 import type { ProjectStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -27,43 +29,34 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
   { value: "completed", label: "Completed" },
 ];
 
-function slugify(name: string) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
 export function NewProjectModal() {
   const open = useUIStore((s) => s.newProjectOpen);
   const setOpen = useUIStore((s) => s.setNewProjectOpen);
-  const projects = useProjectsStore((s) => s.projects);
   const createProject = useProjectsStore((s) => s.createProject);
   const members = useMembersStore((s) => s.members);
+  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const currentUser = useCurrentUser();
 
   const [name, setName] = useState("");
   const [teamKey, setTeamKey] = useState("");
   const [summary, setSummary] = useState("");
   const [color, setColor] = useState(COLOR_OPTIONS[0]);
-  const [leadName, setLeadName] = useState("");
+  const [leadId, setLeadId] = useState("");
   const [status, setStatus] = useState<ProjectStatus>("planning");
   const [startDate, setStartDate] = useState("2026-07-29");
   const [targetDate, setTargetDate] = useState("2026-08-25");
-  const [memberNames, setMemberNames] = useState<string[]>([]);
+  const [memberIds, setMemberIds] = useState<string[]>([]);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (open && currentUser) {
-      setMemberNames((prev) => (prev.length === 0 ? [currentUser.name] : prev));
+      setMemberIds((prev) => (prev.length === 0 ? [currentUser.id] : prev));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  function toggleMember(name: string) {
-    setMemberNames((prev) =>
-      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
-    );
+  function toggleMember(id: string) {
+    setMemberIds((prev) => (prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]));
   }
 
   function resetForm() {
@@ -71,43 +64,39 @@ export function NewProjectModal() {
     setTeamKey("");
     setSummary("");
     setColor(COLOR_OPTIONS[0]);
-    setLeadName("");
+    setLeadId("");
     setStatus("planning");
     setStartDate("2026-07-29");
     setTargetDate("2026-08-25");
-    setMemberNames(currentUser ? [currentUser.name] : []);
+    setMemberIds(currentUser ? [currentUser.id] : []);
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     const trimmedName = name.trim();
-    if (!trimmedName) return;
+    if (!trimmedName || !currentWorkspaceId) return;
 
-    let id = slugify(trimmedName);
-    if (!id) id = `project-${Date.now()}`;
-    let suffix = 2;
-    while (projects.some((p) => p.id === id)) {
-      id = `${slugify(trimmedName)}-${suffix}`;
-      suffix += 1;
+    setCreating(true);
+    try {
+      const project = await createProject({
+        name: trimmedName,
+        teamKey: teamKey.trim().toUpperCase() || trimmedName.slice(0, 3).toUpperCase(),
+        color,
+        summary: summary.trim() || "No summary yet.",
+        leadId: leadId || undefined,
+        status,
+        startDate,
+        targetDate,
+        workspaceId: currentWorkspaceId,
+        memberUserIds: memberIds,
+      });
+      toast.success(`${project.name} project created`);
+      resetForm();
+      setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to create project");
+    } finally {
+      setCreating(false);
     }
-
-    const lead = members.find((m) => m.name === leadName);
-
-    createProject({
-      id,
-      name: trimmedName,
-      teamKey: teamKey.trim().toUpperCase() || trimmedName.slice(0, 3).toUpperCase(),
-      color,
-      summary: summary.trim() || "No summary yet.",
-      lead,
-      status,
-      startDate,
-      targetDate,
-      memberNames,
-    });
-
-    toast.success(`${trimmedName} project created`);
-    resetForm();
-    setOpen(false);
   }
 
   return (
@@ -197,13 +186,13 @@ export function NewProjectModal() {
                   <div>
                     <label className="text-xs text-fg-secondary">Lead</label>
                     <select
-                      value={leadName}
-                      onChange={(e) => setLeadName(e.target.value)}
+                      value={leadId}
+                      onChange={(e) => setLeadId(e.target.value)}
                       className="mt-1 w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-fg outline-none"
                     >
                       <option value="">No lead yet</option>
                       {members.map((m) => (
-                        <option key={m.name} value={m.name}>
+                        <option key={m.id} value={m.id}>
                           {m.name}
                         </option>
                       ))}
@@ -236,14 +225,14 @@ export function NewProjectModal() {
                     <div className="mt-1.5 flex flex-col gap-1 rounded-md border border-border p-2">
                       {members.map((m) => (
                         <label
-                          key={m.name}
+                          key={m.id}
                           className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm text-fg hover:bg-surface-hover"
                         >
                           <input
                             type="checkbox"
-                            checked={memberNames.includes(m.name)}
-                            onChange={() => toggleMember(m.name)}
-                            className="size-3.5 rounded border-border-strong accent-[var(--fg)]"
+                            checked={memberIds.includes(m.id)}
+                            onChange={() => toggleMember(m.id)}
+                            className="size-3.5 rounded border-border-strong accent-fg"
                           />
                           <span className="flex size-5 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium ring-1 ring-border">
                             {m.initials}
@@ -289,10 +278,10 @@ export function NewProjectModal() {
                   <button
                     type="button"
                     onClick={handleCreate}
-                    disabled={!name.trim()}
+                    disabled={!name.trim() || creating}
                     className={cn(
                       "rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90",
-                      !name.trim() && "opacity-40"
+                      (!name.trim() || creating) && "opacity-40"
                     )}
                   >
                     Create project

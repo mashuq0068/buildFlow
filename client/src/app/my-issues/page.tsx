@@ -13,8 +13,11 @@ export default function MyIssuesPage() {
   const currentUser = useCurrentUser();
   const allIssues = useIssuesStore((s) => s.issues);
   const issues = useMemo(
-    () => allIssues.filter((i) => i.assignee?.name === currentUser?.name),
-    [allIssues, currentUser?.name]
+    () =>
+      allIssues.filter(
+        (i) => i.assignee?.id === currentUser?.id || i.creator?.id === currentUser?.id
+      ),
+    [allIssues, currentUser?.id]
   );
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
@@ -32,7 +35,7 @@ export default function MyIssuesPage() {
         />
         {issues.length === 0 ? (
           <p className="p-6 text-center text-sm text-fg-secondary">
-            No issues are assigned to you yet.
+            No issues assigned to or created by you yet.
           </p>
         ) : boardView === "board" ? (
           <KanbanBoard issues={issues} />

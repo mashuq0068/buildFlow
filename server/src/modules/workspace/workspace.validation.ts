@@ -9,6 +9,7 @@ const create = z.object({
   body: z.object({
     name: z.string().min(1),
     slug,
+    color: z.string().optional(),
   }),
 });
 
@@ -16,6 +17,7 @@ const update = z.object({
   body: z.object({
     name: z.string().min(1).optional(),
     slug: slug.optional(),
+    color: z.string().optional(),
   }),
 });
 

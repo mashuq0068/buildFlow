@@ -9,7 +9,7 @@ import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { useProjectsStore } from "@/lib/stores/projects-store";
-import { isProjectVisible } from "@/lib/project-visibility";
+import { useActivityStore } from "@/lib/stores/activity-store";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -23,28 +23,17 @@ function timeAgo(iso: string) {
 
 export default function DashboardPage() {
   const issues = useIssuesStore((s) => s.issues);
-  const activityByIssue = useIssuesStore((s) => s.activity);
+  const recentActivity = useActivityStore((s) => s.recent);
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const currentUser = useCurrentUser();
-  const allProjects = useProjectsStore((s) => s.projects);
-  const projects = allProjects.filter((p) =>
-    isProjectVisible(p, currentUser?.name, currentUser?.role)
-  );
+  const projects = useProjectsStore((s) => s.projects);
 
-  const myIssues = issues.filter((i) => i.assignee?.name === currentUser?.name);
+  const myIssues = issues.filter(
+    (i) => i.assignee?.id === currentUser?.id || i.creator?.id === currentUser?.id
+  );
   const myOpenIssues = myIssues.filter((i) => i.status !== "done" && i.status !== "canceled");
   const myInProgress = myIssues.filter((i) => i.status === "in_progress");
-
-  const recentActivity = Object.entries(activityByIssue)
-    .flatMap(([issueId, entries]) =>
-      entries.map((entry) => ({
-        ...entry,
-        issueIdentifier: issues.find((i) => i.id === issueId)?.identifier ?? issueId,
-      }))
-    )
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg">
@@ -83,7 +72,9 @@ export default function DashboardPage() {
               </div>
               <div className="mt-3 flex flex-col gap-2">
                 {myIssues.length === 0 && (
-                  <p className="text-xs text-fg-secondary">No issues assigned to you.</p>
+                  <p className="text-xs text-fg-secondary">
+                    No issues assigned to or created by you.
+                  </p>
                 )}
                 {myIssues.slice(0, 5).map((issue) => (
                   <div key={issue.id} className="flex items-center gap-2 text-sm">

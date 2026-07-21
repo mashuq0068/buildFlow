@@ -5,8 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useProjectsStore } from "@/lib/stores/projects-store";
-import { useCurrentUser } from "@/lib/current-user";
-import { isProjectVisible } from "@/lib/project-visibility";
+import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 export function AddToRoadmapModal({
@@ -16,11 +15,7 @@ export function AddToRoadmapModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const currentUser = useCurrentUser();
-  const allProjects = useProjectsStore((s) => s.projects);
-  const projects = allProjects.filter((p) =>
-    isProjectVisible(p, currentUser?.name, currentUser?.role)
-  );
+  const projects = useProjectsStore((s) => s.projects);
   const updateProject = useProjectsStore((s) => s.updateProject);
 
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
@@ -47,11 +42,15 @@ export function AddToRoadmapModal({
     setTargetDate(project?.targetDate ?? "2026-08-15");
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!projectId) return;
-    updateProject(projectId, { startDate, targetDate });
-    toast.success(`${selected?.name ?? "Project"} added to roadmap`);
-    onOpenChange(false);
+    try {
+      await updateProject(projectId, { startDate, targetDate });
+      toast.success(`${selected?.name ?? "Project"} added to roadmap`);
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update project");
+    }
   }
 
   return (

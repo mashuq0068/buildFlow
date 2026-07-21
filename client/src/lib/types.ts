@@ -2,16 +2,19 @@ export type IssueStatus = "backlog" | "todo" | "in_progress" | "in_review" | "do
 export type IssuePriority = "no_priority" | "low" | "medium" | "high" | "urgent";
 
 export interface Person {
+  id: string;
   name: string;
   initials: string;
 }
 
 export interface Label {
+  id: string;
   name: string;
   color: string;
 }
 
 export interface Attachment {
+  id: string;
   name: string;
   size: string;
 }
@@ -24,6 +27,7 @@ export interface Issue {
   status: IssueStatus;
   priority: IssuePriority;
   assignee?: Person;
+  creator?: Person;
   labels?: Label[];
   attachments?: Attachment[];
   parentId?: string;
@@ -48,6 +52,7 @@ export interface Project {
   startDate?: string;
   targetDate?: string;
   memberNames?: string[];
+  memberIds?: string[];
 }
 
 export interface Workspace {
@@ -55,6 +60,7 @@ export interface Workspace {
   name: string;
   slug: string;
   color: string;
+  role?: Role;
 }
 
 export interface Cycle {
