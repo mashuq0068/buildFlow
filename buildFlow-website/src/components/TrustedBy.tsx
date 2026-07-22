@@ -123,7 +123,7 @@ export default function TrustedBy() {
           {[...brands, ...brands].map((b, i) => (
             <div
               key={`${b.key}-${i}`}
-              className="flex-shrink-0 text-neutral-300 hover:text-neutral-700 hover:scale-110 transition-all duration-300 cursor-default"
+              className="flex-shrink-0 text-neutral-700 hover:scale-110 transition-all duration-300 cursor-default"
             >
               <b.Logo />
             </div>
