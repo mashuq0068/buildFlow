@@ -4,6 +4,7 @@ import Link from "next/link";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Bell } from "lucide-react";
 import { useNotificationsStore } from "@/lib/stores/notifications-store";
+import { Avatar } from "@/components/ui/avatar";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -54,9 +55,7 @@ export function NotificationBell() {
               onSelect={() => markRead(n.id)}
               className="flex cursor-pointer items-start gap-2.5 border-b border-border px-3 py-2.5 outline-none last:border-0 data-[highlighted]:bg-surface-hover"
             >
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium text-fg ring-1 ring-border">
-                {n.actor.initials}
-              </span>
+              <Avatar person={n.actor} size={20} className="text-fg" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-fg">
                   <span className="font-medium">{n.actor.name}</span> {n.message}

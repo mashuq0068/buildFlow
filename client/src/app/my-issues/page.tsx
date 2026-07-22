@@ -14,6 +14,8 @@ import { useMembersStore } from "@/lib/stores/members-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { useIssueFilters } from "@/lib/hooks/use-issue-filters";
 import { CATEGORY_COLUMNS, getCategoryColumnId } from "@/lib/board-columns";
+import { resolveStatusIdForCategory } from "@/lib/resolve-category-drop";
+import type { StatusCategory } from "@/lib/types";
 
 export default function MyIssuesPage() {
   const currentUser = useCurrentUser();
@@ -57,7 +59,9 @@ export default function MyIssuesPage() {
                 issues={filters.filtered}
                 columns={CATEGORY_COLUMNS}
                 getColumnId={getCategoryColumnId}
-                draggable={false}
+                resolveDropStatusId={(issue, columnId) =>
+                  resolveStatusIdForCategory(issue.projectId, columnId as StatusCategory)
+                }
               />
             ) : (
               <ListView

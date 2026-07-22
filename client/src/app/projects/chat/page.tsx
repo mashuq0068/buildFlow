@@ -14,6 +14,7 @@ import { useUIStore } from "@/lib/stores/ui-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useProjectChatStore } from "@/lib/stores/project-chat-store";
 import { useCurrentUser } from "@/lib/current-user";
+import { useProjectRoom } from "@/lib/hooks/use-live-room";
 
 function ProjectChatContent() {
   const searchParams = useSearchParams();
@@ -32,6 +33,8 @@ function ProjectChatContent() {
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
 
   const [membersOpen, setMembersOpen] = useState(false);
+
+  useProjectRoom(projectId || undefined);
 
   useEffect(() => {
     if (project) fetchMessages(projectId).catch(() => toast.error("Failed to load discussion"));

@@ -13,10 +13,18 @@ interface ServerAuthUser {
   email: string;
   initials: string;
   title: string | null;
+  avatarUrl?: string | null;
 }
 
 function mapAuthUser(u: ServerAuthUser): AuthUser {
-  return { id: u.id, name: u.name, initials: u.initials, email: u.email, title: u.title ?? undefined };
+  return {
+    id: u.id,
+    name: u.name,
+    initials: u.initials,
+    email: u.email,
+    title: u.title ?? undefined,
+    avatarUrl: u.avatarUrl ?? undefined,
+  };
 }
 
 type AuthStatus = "idle" | "loading" | "authenticated" | "unauthenticated";

@@ -1,9 +1,21 @@
 "use client";
 
-import { SignalLow, SignalMedium, SignalHigh, AlertTriangle, Minus, Paperclip, Star } from "lucide-react";
+import {
+  SignalLow,
+  SignalMedium,
+  SignalHigh,
+  AlertTriangle,
+  Flame,
+  Minus,
+  Paperclip,
+  Star,
+  CalendarClock,
+} from "lucide-react";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useIssuesStore } from "@/lib/stores/issues-store";
-import { cn } from "@/lib/utils";
+import { cn, isIssueOverdue, formatDueDate } from "@/lib/utils";
+import { STATUS_ICONS, DefaultStatusIcon } from "@/lib/status-icons";
+import { Avatar } from "@/components/ui/avatar";
 import type { Issue, IssuePriority } from "@/lib/types";
 
 const PRIORITY_ICON: Record<IssuePriority, React.ElementType> = {
@@ -12,6 +24,7 @@ const PRIORITY_ICON: Record<IssuePriority, React.ElementType> = {
   medium: SignalMedium,
   high: SignalHigh,
   urgent: AlertTriangle,
+  critical: Flame,
 };
 
 const PRIORITY_COLOR: Record<IssuePriority, string> = {
@@ -20,6 +33,7 @@ const PRIORITY_COLOR: Record<IssuePriority, string> = {
   medium: "text-fg-secondary",
   high: "text-fg",
   urgent: "text-[#e5484d]",
+  critical: "text-[#dc2626]",
 };
 
 export function IssueRow({
@@ -37,6 +51,7 @@ export function IssueRow({
   const isFavorite = useIssuesStore((s) => s.favoriteIds.includes(issue.id));
   const toggleFavorite = useIssuesStore((s) => s.toggleFavorite);
   const Icon = PRIORITY_ICON[issue.priority];
+  const StatusIcon = STATUS_ICONS[issue.status.icon] ?? DefaultStatusIcon;
 
   return (
     <div
@@ -72,6 +87,9 @@ export function IssueRow({
         <Star size={13} fill={isFavorite ? "currentColor" : "none"} />
       </button>
       <Icon size={13} className={`shrink-0 ${PRIORITY_COLOR[issue.priority]}`} />
+      <span title={issue.status.name} className="shrink-0" style={{ color: issue.status.color }}>
+        <StatusIcon size={13} />
+      </span>
       <span className="w-16 shrink-0 text-xs text-fg-secondary">{issue.identifier}</span>
       <span className="min-w-0 flex-1 truncate text-sm text-fg">{issue.title}</span>
 
@@ -96,13 +114,22 @@ export function IssueRow({
         </span>
       )}
 
-      {issue.assignee ? (
+      {issue.dueDate && (
         <span
-          title={issue.assignee.name}
-          className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium text-fg-secondary ring-1 ring-border"
+          className={cn(
+            "hidden shrink-0 items-center gap-0.5 text-[10px] sm:flex",
+            isIssueOverdue(issue.dueDate, issue.status.category)
+              ? "text-[#e5484d]"
+              : "text-fg-tertiary"
+          )}
         >
-          {issue.assignee.initials}
+          <CalendarClock size={11} />
+          {formatDueDate(issue.dueDate)}
         </span>
+      )}
+
+      {issue.assignee ? (
+        <Avatar person={issue.assignee} size={20} />
       ) : (
         <span className="size-5 shrink-0 rounded-full border border-dashed border-border-strong" />
       )}

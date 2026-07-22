@@ -15,7 +15,7 @@ import { PRIORITY_LABEL, type IssuePriority } from "@/lib/types";
 import { useProjectStatusColumns } from "@/lib/hooks/use-project-status-columns";
 import { cn, isEmptyHtml } from "@/lib/utils";
 
-const PRIORITIES: IssuePriority[] = ["no_priority", "low", "medium", "high", "urgent"];
+const PRIORITIES: IssuePriority[] = ["no_priority", "low", "medium", "high", "urgent", "critical"];
 const LABEL_COLOR: Record<string, string> = {
   Infra: "#5e9bd6",
   "CI/CD": "#5e9bd6",

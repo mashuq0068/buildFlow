@@ -1,6 +1,12 @@
-export type IssuePriority = "no_priority" | "low" | "medium" | "high" | "urgent";
+export type IssuePriority = "no_priority" | "low" | "medium" | "high" | "urgent" | "critical";
 
-export type StatusCategory = "backlog" | "unstarted" | "started" | "completed" | "canceled";
+export type StatusCategory =
+  | "backlog"
+  | "unstarted"
+  | "started"
+  | "blocked"
+  | "completed"
+  | "canceled";
 
 export interface IssueStatusOption {
   id: string;
@@ -16,6 +22,7 @@ export interface Person {
   id: string;
   name: string;
   initials: string;
+  avatarUrl?: string;
 }
 
 export interface Label {
@@ -45,6 +52,8 @@ export interface Issue {
   projectId: string;
   cycleId?: string;
   archived: boolean;
+  dueDate?: string;
+  blockedById?: string;
   aiSuggested?: {
     labels?: string[];
     reasoning: string;
@@ -52,6 +61,20 @@ export interface Issue {
 }
 
 export type ProjectStatus = "planning" | "active" | "on_hold" | "completed";
+
+export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
+  planning: "Planning",
+  active: "Active",
+  on_hold: "On hold",
+  completed: "Completed",
+};
+
+export const PROJECT_STATUS_COLOR: Record<ProjectStatus, string> = {
+  planning: "#8b8fa3",
+  active: "#4cb782",
+  on_hold: "#e8a53f",
+  completed: "#5e9bd6",
+};
 
 export interface Project {
   id: string;
@@ -102,6 +125,15 @@ export interface Goal {
   targetDate: string;
 }
 
+export interface Milestone {
+  id: string;
+  title: string;
+  description?: string;
+  projectId: string;
+  targetDate: string;
+  completed: boolean;
+}
+
 export type Role = "admin" | "member";
 
 export interface Member extends Person {
@@ -115,6 +147,7 @@ export interface ReactionSummary {
   count: number;
   reactedByMe: boolean;
   userNames: string[];
+  userIds: string[];
 }
 
 export interface DiscussionAttachment {
@@ -158,6 +191,7 @@ export const CATEGORY_ORDER: StatusCategory[] = [
   "backlog",
   "unstarted",
   "started",
+  "blocked",
   "completed",
   "canceled",
 ];
@@ -166,6 +200,7 @@ export const CATEGORY_LABEL: Record<StatusCategory, string> = {
   backlog: "Backlog",
   unstarted: "Todo",
   started: "In Progress",
+  blocked: "Blocked",
   completed: "Done",
   canceled: "Canceled",
 };
@@ -174,6 +209,7 @@ export const CATEGORY_COLOR: Record<StatusCategory, string> = {
   backlog: "#8b8fa3",
   unstarted: "#6e79d6",
   started: "#e8a53f",
+  blocked: "#e5484d",
   completed: "#4cb782",
   canceled: "#6b7280",
 };
@@ -184,4 +220,14 @@ export const PRIORITY_LABEL: Record<IssuePriority, string> = {
   medium: "Medium",
   high: "High",
   urgent: "Urgent",
+  critical: "Critical",
+};
+
+export const PRIORITY_CHART_COLOR: Record<IssuePriority, string> = {
+  no_priority: "#8b8fa3",
+  low: "#5e9bd6",
+  medium: "#4cb782",
+  high: "#e8a53f",
+  urgent: "#e5484d",
+  critical: "#7c3aed",
 };

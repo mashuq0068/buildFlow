@@ -15,4 +15,11 @@ const login = z.object({
   }),
 });
 
-export const authValidation = { register, login };
+const changePassword = z.object({
+  body: z.object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(8),
+  }),
+});
+
+export const authValidation = { register, login, changePassword };

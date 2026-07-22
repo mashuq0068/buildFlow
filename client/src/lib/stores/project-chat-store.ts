@@ -17,10 +17,12 @@ interface ProjectChatState {
   updateMessage: (projectId: string, messageId: string, body: string) => Promise<void>;
   deleteMessage: (projectId: string, messageId: string) => Promise<void>;
   toggleMessageReaction: (projectId: string, messageId: string, emoji: string) => Promise<void>;
+  upsertMessage: (projectId: string, message: ChatMessage) => void;
+  removeMessage: (projectId: string, messageId: string) => void;
   reset: () => void;
 }
 
-export const useProjectChatStore = create<ProjectChatState>()((set) => ({
+export const useProjectChatStore = create<ProjectChatState>()((set, get) => ({
   messages: {},
   loadedProjectIds: [],
 
@@ -38,10 +40,7 @@ export const useProjectChatStore = create<ProjectChatState>()((set) => ({
       parentId,
       attachments,
     });
-    const message = mapChatMessage(raw);
-    set((state) => ({
-      messages: { ...state.messages, [projectId]: [...(state.messages[projectId] ?? []), message] },
-    }));
+    get().upsertMessage(projectId, mapChatMessage(raw));
   },
 
   updateMessage: async (projectId, messageId, body) => {
@@ -49,23 +48,12 @@ export const useProjectChatStore = create<ProjectChatState>()((set) => ({
       `/projects/${projectId}/chat/${messageId}`,
       { body }
     );
-    const message = mapChatMessage(raw);
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [projectId]: (state.messages[projectId] ?? []).map((m) => (m.id === messageId ? message : m)),
-      },
-    }));
+    get().upsertMessage(projectId, mapChatMessage(raw));
   },
 
   deleteMessage: async (projectId, messageId) => {
     await api.delete(`/projects/${projectId}/chat/${messageId}`);
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [projectId]: (state.messages[projectId] ?? []).filter((m) => m.id !== messageId),
-      },
-    }));
+    get().removeMessage(projectId, messageId);
   },
 
   toggleMessageReaction: async (projectId, messageId, emoji) => {
@@ -73,11 +61,26 @@ export const useProjectChatStore = create<ProjectChatState>()((set) => ({
       `/projects/${projectId}/chat/${messageId}/reactions`,
       { emoji }
     );
-    const message = mapChatMessage(raw);
+    get().upsertMessage(projectId, mapChatMessage(raw));
+  },
+
+  upsertMessage: (projectId, message) => {
+    set((state) => {
+      const existing = state.messages[projectId] ?? [];
+      const index = existing.findIndex((m) => m.id === message.id);
+      const next =
+        index === -1
+          ? [...existing, message]
+          : existing.map((m) => (m.id === message.id ? message : m));
+      return { messages: { ...state.messages, [projectId]: next } };
+    });
+  },
+
+  removeMessage: (projectId, messageId) => {
     set((state) => ({
       messages: {
         ...state.messages,
-        [projectId]: (state.messages[projectId] ?? []).map((m) => (m.id === messageId ? message : m)),
+        [projectId]: (state.messages[projectId] ?? []).filter((m) => m.id !== messageId),
       },
     }));
   },

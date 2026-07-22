@@ -28,9 +28,11 @@ import { DiscussionThread } from "@/components/discussion/discussion-thread";
 import { ActivityTab } from "./activity-tab";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { useProjectStatusColumns } from "@/lib/hooks/use-project-status-columns";
+import { useIssueRoom } from "@/lib/hooks/use-live-room";
+import { STATUS_ICONS, DefaultStatusIcon } from "@/lib/status-icons";
 import { cn } from "@/lib/utils";
 
-const PRIORITIES: IssuePriority[] = ["no_priority", "low", "medium", "high", "urgent"];
+const PRIORITIES: IssuePriority[] = ["no_priority", "low", "medium", "high", "urgent", "critical"];
 const EMPTY_COMMENTS: never[] = [];
 
 export function IssueDetailPanel() {
@@ -51,12 +53,28 @@ export function IssueDetailPanel() {
   const archiveIssue = useIssuesStore((s) => s.archiveIssue);
   const duplicateIssue = useIssuesStore((s) => s.duplicateIssue);
   const members = useMembersStore((s) => s.members);
+  const allIssues = useIssuesStore((s) => s.issues);
   const currentUser = useCurrentUser();
   const statusColumns = useProjectStatusColumns(issue?.projectId);
 
   const [tab, setTab] = useState<"comments" | "activity">("comments");
 
   const open = Boolean(issue);
+
+  useIssueRoom(selectedIssueId ?? undefined);
+
+  const isOverdue = Boolean(
+    issue?.dueDate &&
+      new Date(issue.dueDate) < new Date() &&
+      issue.status.category !== "completed" &&
+      issue.status.category !== "canceled"
+  );
+
+  const blockerCandidates = issue
+    ? allIssues.filter((i) => i.projectId === issue.projectId && i.id !== issue.id)
+    : [];
+
+  const StatusIcon = issue ? STATUS_ICONS[issue.status.icon] ?? DefaultStatusIcon : DefaultStatusIcon;
 
   useEffect(() => {
     if (selectedIssueId) {
@@ -254,17 +272,20 @@ export function IssueDetailPanel() {
 
               <div className="mt-4 flex flex-col gap-3 rounded-md border border-border p-3">
                 <PropertyRow label="Status">
-                  <select
-                    value={issue.status.id}
-                    onChange={(e) => handleMove(e.target.value)}
-                    className="rounded border border-border bg-surface px-2 py-1 text-xs text-fg outline-none"
-                  >
-                    {statusColumns.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-1.5">
+                    <StatusIcon size={14} style={{ color: issue.status.color }} />
+                    <select
+                      value={issue.status.id}
+                      onChange={(e) => handleMove(e.target.value)}
+                      className="rounded border border-border bg-surface px-2 py-1 text-xs text-fg outline-none"
+                    >
+                      {statusColumns.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </PropertyRow>
 
                 <PropertyRow label="Priority">
@@ -291,6 +312,37 @@ export function IssueDetailPanel() {
                     {members.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </PropertyRow>
+
+                <PropertyRow label="Due date">
+                  <div className="flex items-center gap-1.5">
+                    {isOverdue && (
+                      <span className="text-[10px] font-medium text-[#e5484d]">Overdue</span>
+                    )}
+                    <input
+                      type="date"
+                      value={issue.dueDate?.slice(0, 10) ?? ""}
+                      onChange={(e) =>
+                        handleUpdate({ dueDate: e.target.value ? e.target.value : null })
+                      }
+                      className="rounded border border-border bg-surface px-2 py-1 text-xs text-fg outline-none"
+                    />
+                  </div>
+                </PropertyRow>
+
+                <PropertyRow label="Blocked by">
+                  <select
+                    value={issue.blockedById ?? ""}
+                    onChange={(e) => handleUpdate({ blockedById: e.target.value || null })}
+                    className="max-w-[60%] rounded border border-border bg-surface px-2 py-1 text-xs text-fg outline-none"
+                  >
+                    <option value="">Not blocked</option>
+                    {blockerCandidates.map((candidate) => (
+                      <option key={candidate.id} value={candidate.id}>
+                        {candidate.identifier} — {candidate.title}
                       </option>
                     ))}
                   </select>

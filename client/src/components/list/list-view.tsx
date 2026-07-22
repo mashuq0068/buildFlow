@@ -6,6 +6,7 @@ import type { Issue, Person } from "@/lib/types";
 import type { BoardColumn } from "@/components/board/kanban-board";
 import { IssueRow } from "./issue-row";
 import { BulkActionBar } from "./bulk-action-bar";
+import { STATUS_ICONS, DefaultStatusIcon } from "@/lib/status-icons";
 import { cn } from "@/lib/utils";
 
 export function ListView({
@@ -53,6 +54,7 @@ export function ListView({
       {columns.map((column) => {
         const columnIssues = issues.filter((i) => getColumnId(i) === column.id);
         const isCollapsed = collapsed[column.id];
+        const ColumnIcon = column.icon ? STATUS_ICONS[column.icon] ?? DefaultStatusIcon : null;
 
         return (
           <div key={column.id}>
@@ -65,8 +67,15 @@ export function ListView({
                 size={13}
                 className={cn("transition-transform", isCollapsed && "-rotate-90")}
               />
-              {column.color && (
-                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column.color }} />
+              {ColumnIcon ? (
+                <ColumnIcon size={13} className="shrink-0" style={{ color: column.color }} />
+              ) : (
+                column.color && (
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: column.color }}
+                  />
+                )
               )}
               <span>{column.label}</span>
               <span className="text-fg-secondary">{columnIssues.length}</span>

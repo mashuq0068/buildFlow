@@ -10,6 +10,7 @@ import { useMembersStore } from "@/lib/stores/members-store";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api-client";
+import { Avatar } from "@/components/ui/avatar";
 import type { ProjectStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -234,9 +235,7 @@ export function NewProjectModal() {
                             onChange={() => toggleMember(m.id)}
                             className="size-3.5 rounded border-border-strong accent-fg"
                           />
-                          <span className="flex size-5 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium ring-1 ring-border">
-                            {m.initials}
-                          </span>
+                          <Avatar person={m} size={20} />
                           {m.name}
                         </label>
                       ))}

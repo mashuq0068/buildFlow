@@ -11,5 +11,11 @@ router.post("/login", validateRequest(authValidation.login), authController.logi
 router.post("/refresh", authController.refresh);
 router.post("/logout", authController.logout);
 router.get("/me", requireAuth, authController.me);
+router.post(
+  "/change-password",
+  requireAuth,
+  validateRequest(authValidation.changePassword),
+  authController.changePassword
+);
 
 export const authRoutes = router;

@@ -14,6 +14,7 @@ import {
   SignalMedium,
   SignalHigh,
   AlertTriangle,
+  Flame,
   Minus,
 } from "lucide-react";
 import { useUIStore } from "@/lib/stores/ui-store";
@@ -26,6 +27,7 @@ const PRIORITY_ICON: Record<IssuePriority, React.ElementType> = {
   medium: SignalMedium,
   high: SignalHigh,
   urgent: AlertTriangle,
+  critical: Flame,
 };
 
 export function CommandPalette() {

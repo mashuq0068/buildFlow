@@ -2,11 +2,22 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { SignalLow, SignalMedium, SignalHigh, AlertTriangle, Minus, Paperclip, Star } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+  SignalLow,
+  SignalMedium,
+  SignalHigh,
+  AlertTriangle,
+  Flame,
+  Minus,
+  Paperclip,
+  Star,
+  CalendarClock,
+} from "lucide-react";
+import { cn, isIssueOverdue, formatDueDate } from "@/lib/utils";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { STATUS_ICONS, DefaultStatusIcon } from "@/lib/status-icons";
+import { Avatar } from "@/components/ui/avatar";
 import type { Issue, IssuePriority } from "@/lib/types";
 
 const PRIORITY_ICON: Record<IssuePriority, React.ElementType> = {
@@ -15,6 +26,7 @@ const PRIORITY_ICON: Record<IssuePriority, React.ElementType> = {
   medium: SignalMedium,
   high: SignalHigh,
   urgent: AlertTriangle,
+  critical: Flame,
 };
 
 const PRIORITY_COLOR: Record<IssuePriority, string> = {
@@ -23,6 +35,7 @@ const PRIORITY_COLOR: Record<IssuePriority, string> = {
   medium: "text-fg-secondary",
   high: "text-fg",
   urgent: "text-[#e5484d]",
+  critical: "text-[#dc2626]",
 };
 
 export function IssueCard({ issue, draggable = true }: { issue: Issue; draggable?: boolean }) {
@@ -103,14 +116,22 @@ export function IssueCard({ issue, draggable = true }: { issue: Issue; draggable
               <span className="text-[10px]">{issue.attachments.length}</span>
             </span>
           )}
+          {issue.dueDate && (
+            <span
+              className={cn(
+                "flex items-center gap-0.5 text-[10px]",
+                isIssueOverdue(issue.dueDate, issue.status.category)
+                  ? "text-[#e5484d]"
+                  : "text-fg-tertiary"
+              )}
+            >
+              <CalendarClock size={11} />
+              {formatDueDate(issue.dueDate)}
+            </span>
+          )}
         </div>
         {issue.assignee ? (
-          <span
-            title={issue.assignee.name}
-            className="flex size-5 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium text-fg-secondary ring-1 ring-border"
-          >
-            {issue.assignee.initials}
-          </span>
+          <Avatar person={issue.assignee} size={20} />
         ) : (
           <span className="size-5 rounded-full border border-dashed border-border-strong" />
         )}

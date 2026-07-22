@@ -29,6 +29,7 @@ export function serializeUser(user: {
   email: string;
   initials: string;
   title: string | null;
+  avatarUrl?: string | null;
 }) {
   return {
     id: user.id,
@@ -36,5 +37,6 @@ export function serializeUser(user: {
     email: user.email,
     initials: user.initials,
     title: user.title,
+    avatarUrl: user.avatarUrl ?? null,
   };
 }

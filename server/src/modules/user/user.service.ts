@@ -22,6 +22,7 @@ async function listWorkspaceMembers(requesterId: string, workspaceId: string) {
     email: m.user.email,
     initials: m.user.initials,
     title: m.user.title,
+    avatarUrl: m.user.avatarUrl,
     role: m.role,
   }));
 }
@@ -31,7 +32,7 @@ async function addMember(requesterId: string, workspaceId: string, input: IAddMe
 
   let user = await prisma.user.findUnique({
     where: { email: input.email },
-    select: { id: true, name: true, email: true, initials: true, title: true },
+    select: safeUserSelect,
   });
   let tempPassword: string | null = null;
 
@@ -45,7 +46,7 @@ async function addMember(requesterId: string, workspaceId: string, input: IAddMe
         initials: initialsFor(input.name),
         passwordHash: await hashPassword(tempPassword),
       },
-      select: { id: true, name: true, email: true, initials: true, title: true },
+      select: safeUserSelect,
     });
   }
 
@@ -67,6 +68,7 @@ async function addMember(requesterId: string, workspaceId: string, input: IAddMe
     email: membership.user.email,
     initials: membership.user.initials,
     title: membership.user.title,
+    avatarUrl: membership.user.avatarUrl,
     role: membership.role,
     tempPassword,
   };
@@ -95,6 +97,7 @@ async function updateMemberRole(
     email: membership.user.email,
     initials: membership.user.initials,
     title: membership.user.title,
+    avatarUrl: membership.user.avatarUrl,
     role: membership.role,
   };
 }

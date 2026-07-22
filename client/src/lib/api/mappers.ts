@@ -12,6 +12,7 @@ import type {
   Cycle,
   Draft,
   Goal,
+  Milestone,
   Member,
   ChatMessage,
   Comment,
@@ -22,6 +23,7 @@ const CATEGORY_FROM_SERVER: Record<string, StatusCategory> = {
   BACKLOG: "backlog",
   UNSTARTED: "unstarted",
   STARTED: "started",
+  BLOCKED: "blocked",
   COMPLETED: "completed",
   CANCELED: "canceled",
 };
@@ -29,6 +31,7 @@ const CATEGORY_TO_SERVER: Record<StatusCategory, string> = {
   backlog: "BACKLOG",
   unstarted: "UNSTARTED",
   started: "STARTED",
+  blocked: "BLOCKED",
   completed: "COMPLETED",
   canceled: "CANCELED",
 };
@@ -68,6 +71,7 @@ const PRIORITY_FROM_SERVER: Record<string, IssuePriority> = {
   MEDIUM: "medium",
   HIGH: "high",
   URGENT: "urgent",
+  CRITICAL: "critical",
 };
 const PRIORITY_TO_SERVER: Record<IssuePriority, string> = {
   no_priority: "NO_PRIORITY",
@@ -75,6 +79,7 @@ const PRIORITY_TO_SERVER: Record<IssuePriority, string> = {
   medium: "MEDIUM",
   high: "HIGH",
   urgent: "URGENT",
+  critical: "CRITICAL",
 };
 
 const PROJECT_STATUS_FROM_SERVER: Record<string, ProjectStatus> = {
@@ -109,10 +114,16 @@ interface ServerUser {
   email?: string;
   initials: string;
   title?: string | null;
+  avatarUrl?: string | null;
 }
 
 export function mapPerson(user: ServerUser): Person {
-  return { id: user.id, name: user.name, initials: user.initials };
+  return {
+    id: user.id,
+    name: user.name,
+    initials: user.initials,
+    avatarUrl: user.avatarUrl ?? undefined,
+  };
 }
 
 export function mapMember(user: ServerUser, role: string): Member {
@@ -122,6 +133,7 @@ export function mapMember(user: ServerUser, role: string): Member {
     initials: user.initials,
     email: user.email,
     title: user.title ?? undefined,
+    avatarUrl: user.avatarUrl ?? undefined,
     role: role === "ADMIN" ? "admin" : "member",
   };
 }
@@ -152,6 +164,8 @@ interface ServerIssue {
   aiSuggestedLabels?: string[];
   aiSuggestedReasoning?: string | null;
   archived?: boolean;
+  dueDate?: string | Date | null;
+  blockedById?: string | null;
 }
 
 export function mapIssue(issue: ServerIssue, teamKeyFallback = "ISSUE"): Issue {
@@ -167,6 +181,8 @@ export function mapIssue(issue: ServerIssue, teamKeyFallback = "ISSUE"): Issue {
     cycleId: issue.cycleId ?? undefined,
     parentId: issue.parentId ?? undefined,
     archived: issue.archived ?? false,
+    dueDate: issue.dueDate ? new Date(issue.dueDate).toISOString() : undefined,
+    blockedById: issue.blockedById ?? undefined,
     assignee: issue.assignee ? mapPerson(issue.assignee) : undefined,
     creator: issue.creator ? mapPerson(issue.creator) : undefined,
     labels: issue.labels?.map((l) => mapLabel(l.label)),
@@ -266,6 +282,26 @@ export function mapGoal(g: ServerGoal): Goal {
   };
 }
 
+interface ServerMilestone {
+  id: string;
+  title: string;
+  description?: string | null;
+  projectId: string;
+  targetDate: string | Date;
+  completed: boolean;
+}
+
+export function mapMilestone(m: ServerMilestone): Milestone {
+  return {
+    id: m.id,
+    title: m.title,
+    description: m.description ?? undefined,
+    projectId: m.projectId,
+    targetDate: new Date(m.targetDate).toISOString().slice(0, 10),
+    completed: m.completed,
+  };
+}
+
 interface ServerDraft {
   id: string;
   title: string;
@@ -291,6 +327,7 @@ interface ServerReaction {
   count: number;
   reactedByMe: boolean;
   userNames: string[];
+  userIds: string[];
 }
 
 interface ServerAttachment {

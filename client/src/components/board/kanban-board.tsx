@@ -24,6 +24,7 @@ export interface BoardColumn {
   id: string;
   label: string;
   color?: string;
+  icon?: string;
 }
 
 interface KanbanBoardProps {
@@ -31,9 +32,18 @@ interface KanbanBoardProps {
   columns: BoardColumn[];
   getColumnId: (issue: Issue) => string;
   draggable?: boolean;
+  /** When set, columnId is not a real statusId (e.g. cross-project category
+   * columns) — resolve it to the dropped issue's own project's real status. */
+  resolveDropStatusId?: (issue: Issue, columnId: string) => Promise<string | null>;
 }
 
-export function KanbanBoard({ issues, columns, getColumnId, draggable = true }: KanbanBoardProps) {
+export function KanbanBoard({
+  issues,
+  columns,
+  getColumnId,
+  draggable = true,
+  resolveDropStatusId,
+}: KanbanBoardProps) {
   const moveIssue = useIssuesStore((s) => s.moveIssue);
   const reorderWithinStatus = useIssuesStore((s) => s.reorderWithinStatus);
 
@@ -115,10 +125,23 @@ export function KanbanBoard({ issues, columns, getColumnId, draggable = true }: 
 
     try {
       if (originalContainer !== finalContainer) {
+        if (resolveDropStatusId) {
+          const realStatusId = await resolveDropStatusId(movedIssue, finalContainer);
+          if (!realStatusId) {
+            toast.error("That project has no status in this category");
+            return;
+          }
+          await moveIssue(active.id as string, realStatusId);
+          return;
+        }
         await moveIssue(active.id as string, finalContainer);
         await reorderWithinStatus(movedIssue.projectId, finalContainer, finalColumns[finalContainer]);
         return;
       }
+
+      // Cross-project category columns mix issues from different projects —
+      // there's no single-project reorder call that makes sense here, so skip it.
+      if (resolveDropStatusId) return;
 
       const overContainer = findContainer(over.id as string) ?? finalContainer;
       if (overContainer !== finalContainer) return;
@@ -156,6 +179,7 @@ export function KanbanBoard({ issues, columns, getColumnId, draggable = true }: 
             id={column.id}
             label={column.label}
             color={column.color}
+            icon={column.icon}
             draggable={draggable}
             issues={(columnsState[column.id] ?? []).map((id) => issuesById[id]).filter(Boolean)}
           />

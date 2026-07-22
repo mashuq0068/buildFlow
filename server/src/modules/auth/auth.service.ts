@@ -113,6 +113,26 @@ async function logout(refreshTokenRaw: string | undefined) {
   });
 }
 
+async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { passwordHash: true },
+  });
+  const valid = await comparePassword(currentPassword, user.passwordHash);
+  if (!valid) throw new HttpError(401, "Current password is incorrect");
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: await hashPassword(newPassword) },
+  });
+
+  // Rotate all refresh tokens so other sessions can't keep riding the old password.
+  await prisma.refreshToken.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+}
+
 async function getMe(userId: string) {
   return prisma.user.findUniqueOrThrow({
     where: { id: userId },
@@ -123,4 +143,4 @@ async function getMe(userId: string) {
   });
 }
 
-export const authService = { register, login, refresh, logout, getMe };
+export const authService = { register, login, refresh, logout, getMe, changePassword };

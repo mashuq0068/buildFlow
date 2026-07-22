@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { Avatar } from "@/components/ui/avatar";
 import type { Person } from "@/lib/types";
 
 export interface MentionListRef {
@@ -64,9 +65,7 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(function
             index === selected ? "bg-surface-hover text-fg" : "text-fg-secondary"
           }`}
         >
-          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium ring-1 ring-border">
-            {item.initials}
-          </span>
+          <Avatar person={item} size={20} />
           {item.name}
         </button>
       ))}

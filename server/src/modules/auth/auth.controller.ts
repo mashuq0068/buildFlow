@@ -48,6 +48,18 @@ const logout: RequestHandler = async (req, res, next) => {
   }
 };
 
+const changePassword: RequestHandler = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    await authService.changePassword(req.user!.id, currentPassword, newPassword);
+    res.clearCookie(ACCESS_COOKIE, { path: "/" });
+    res.clearCookie(REFRESH_COOKIE, { path: "/" });
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const me: RequestHandler = async (req, res, next) => {
   try {
     const user = await authService.getMe(req.user!.id);
@@ -69,4 +81,4 @@ const me: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const authController = { register, login, refresh, logout, me };
+export const authController = { register, login, refresh, logout, me, changePassword };

@@ -5,6 +5,7 @@ import { safeUserSelect } from "../../lib/user-select";
 import { extractMentionedUserIds } from "../../lib/mentions";
 import { aggregateReactions } from "../../lib/reactions";
 import { notificationService } from "../notification/notification.service";
+import { getIO } from "../../lib/socket";
 
 interface AttachmentInput {
   name: string;
@@ -110,7 +111,9 @@ async function createComment(
     await notificationService.createNotification(recipientId, userId, message, identifierLabel);
   }
 
-  return serialize(comment, userId);
+  const result = serialize(comment, userId);
+  getIO().to(`issue:${issueId}`).emit("comment:created", { issueId, comment: result });
+  return result;
 }
 
 async function updateComment(userId: string, commentId: string, body: string) {
@@ -132,7 +135,12 @@ async function updateComment(userId: string, commentId: string, body: string) {
     data: { body, mentionedUserIds, editedAt: new Date() },
     include,
   });
-  return serialize(comment, userId);
+  const result = serialize(comment, userId);
+  getIO().to(`issue:${existing.issueId}`).emit("comment:updated", {
+    issueId: existing.issueId,
+    comment: result,
+  });
+  return result;
 }
 
 async function deleteComment(userId: string, commentId: string) {
@@ -149,6 +157,10 @@ async function deleteComment(userId: string, commentId: string) {
   }
 
   await prisma.comment.delete({ where: { id: commentId } });
+  getIO().to(`issue:${existing.issueId}`).emit("comment:deleted", {
+    issueId: existing.issueId,
+    commentId,
+  });
 }
 
 async function toggleReaction(userId: string, commentId: string, emoji: string) {
@@ -169,7 +181,12 @@ async function toggleReaction(userId: string, commentId: string, emoji: string) 
   }
 
   const comment = await prisma.comment.findUniqueOrThrow({ where: { id: commentId }, include });
-  return serialize(comment, userId);
+  const result = serialize(comment, userId);
+  getIO().to(`issue:${existing.issueId}`).emit("comment:updated", {
+    issueId: existing.issueId,
+    comment: result,
+  });
+  return result;
 }
 
 export const commentService = {

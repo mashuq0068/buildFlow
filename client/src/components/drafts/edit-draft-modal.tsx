@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api-client";
 import { PRIORITY_LABEL, type Draft, type IssuePriority } from "@/lib/types";
 import { cn, isEmptyHtml } from "@/lib/utils";
 
-const PRIORITIES: IssuePriority[] = ["no_priority", "low", "medium", "high", "urgent"];
+const PRIORITIES: IssuePriority[] = ["no_priority", "low", "medium", "high", "urgent", "critical"];
 
 export function EditDraftModal({
   draft,

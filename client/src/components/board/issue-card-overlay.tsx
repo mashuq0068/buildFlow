@@ -1,6 +1,7 @@
 "use client";
 
-import { SignalLow, SignalMedium, SignalHigh, AlertTriangle, Minus } from "lucide-react";
+import { SignalLow, SignalMedium, SignalHigh, AlertTriangle, Flame, Minus } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
 import type { Issue, IssuePriority } from "@/lib/types";
 
 const PRIORITY_ICON: Record<IssuePriority, React.ElementType> = {
@@ -9,6 +10,7 @@ const PRIORITY_ICON: Record<IssuePriority, React.ElementType> = {
   medium: SignalMedium,
   high: SignalHigh,
   urgent: AlertTriangle,
+  critical: Flame,
 };
 
 const PRIORITY_COLOR: Record<IssuePriority, string> = {
@@ -17,6 +19,7 @@ const PRIORITY_COLOR: Record<IssuePriority, string> = {
   medium: "text-fg-secondary",
   high: "text-fg",
   urgent: "text-[#e5484d]",
+  critical: "text-[#dc2626]",
 };
 
 export function IssueCardOverlay({ issue }: { issue: Issue }) {
@@ -31,9 +34,7 @@ export function IssueCardOverlay({ issue }: { issue: Issue }) {
           <Icon size={13} className={PRIORITY_COLOR[issue.priority]} />
         </div>
         {issue.assignee ? (
-          <span className="flex size-5 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium text-fg-secondary ring-1 ring-border">
-            {issue.assignee.initials}
-          </span>
+          <Avatar person={issue.assignee} size={20} />
         ) : (
           <span className="size-5 rounded-full border border-dashed border-border-strong" />
         )}

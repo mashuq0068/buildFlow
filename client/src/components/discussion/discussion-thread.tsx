@@ -5,6 +5,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { Send, Paperclip, Smile, Pencil, Trash2, X, FileText, CornerDownRight } from "lucide-react";
 import { toast } from "sonner";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { Avatar } from "@/components/ui/avatar";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { uploadFile, type UploadedFile } from "@/lib/upload";
 import { isEmptyHtml } from "@/lib/utils";
@@ -201,12 +202,7 @@ function Bubble({
 
   return (
     <div className={cn("group flex items-end gap-2", isMe && "flex-row-reverse")}>
-      <span
-        title={item.author.name}
-        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium text-fg-secondary ring-1 ring-border"
-      >
-        {item.author.initials}
-      </span>
+      <Avatar person={item.author} size={24} />
       <div className={cn("flex max-w-[80%] flex-col gap-1", isMe && "items-end")}>
         {!isMe && <span className="px-1 text-[11px] font-medium text-fg-secondary">{item.author.name}</span>}
 
@@ -238,7 +234,7 @@ function Bubble({
           <div
             className={cn(
               "prose-editor rounded-2xl px-3 py-2 text-sm leading-relaxed",
-              isMe ? "rounded-br-sm bg-accent text-accent-fg" : "rounded-bl-sm bg-surface-hover text-fg"
+              isMe ? "rounded-br-sm bg-gray-100 text-black" : "rounded-bl-sm bg-surface-hover text-fg"
             )}
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.body) }}
           />

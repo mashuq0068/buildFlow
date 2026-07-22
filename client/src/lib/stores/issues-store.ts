@@ -14,6 +14,8 @@ interface CreateIssueInput {
   statusId?: string;
   priority?: IssuePriority;
   cycleId?: string;
+  dueDate?: string;
+  blockedById?: string;
   labels?: { name: string; color: string }[];
   aiSuggestedLabels?: string[];
   aiSuggestedReasoning?: string;
@@ -26,6 +28,8 @@ interface UpdateIssueInput {
   priority?: IssuePriority;
   assigneeId?: string | null;
   cycleId?: string | null;
+  dueDate?: string | null;
+  blockedById?: string | null;
 }
 
 interface CreateDraftInput {
@@ -59,6 +63,8 @@ interface IssuesState {
   updateComment: (issueId: string, commentId: string, body: string) => Promise<void>;
   deleteComment: (issueId: string, commentId: string) => Promise<void>;
   toggleCommentReaction: (issueId: string, commentId: string, emoji: string) => Promise<void>;
+  upsertComment: (issueId: string, comment: Comment) => void;
+  removeComment: (issueId: string, commentId: string) => void;
   updateIssue: (issueId: string, patch: UpdateIssueInput) => Promise<void>;
   createIssue: (input: CreateIssueInput) => Promise<Issue>;
   deleteIssue: (issueId: string) => Promise<void>;
@@ -138,10 +144,7 @@ export const useIssuesStore = create<IssuesState>()((set, get) => ({
       parentId,
       attachments,
     });
-    const comment = mapComment(raw);
-    set((state) => ({
-      comments: { ...state.comments, [issueId]: [...(state.comments[issueId] ?? []), comment] },
-    }));
+    get().upsertComment(issueId, mapComment(raw));
   },
 
   updateComment: async (issueId, commentId, body) => {
@@ -149,23 +152,12 @@ export const useIssuesStore = create<IssuesState>()((set, get) => ({
       `/issues/${issueId}/comments/${commentId}`,
       { body }
     );
-    const comment = mapComment(raw);
-    set((state) => ({
-      comments: {
-        ...state.comments,
-        [issueId]: (state.comments[issueId] ?? []).map((c) => (c.id === commentId ? comment : c)),
-      },
-    }));
+    get().upsertComment(issueId, mapComment(raw));
   },
 
   deleteComment: async (issueId, commentId) => {
     await api.delete(`/issues/${issueId}/comments/${commentId}`);
-    set((state) => ({
-      comments: {
-        ...state.comments,
-        [issueId]: (state.comments[issueId] ?? []).filter((c) => c.id !== commentId),
-      },
-    }));
+    get().removeComment(issueId, commentId);
   },
 
   toggleCommentReaction: async (issueId, commentId, emoji) => {
@@ -173,11 +165,26 @@ export const useIssuesStore = create<IssuesState>()((set, get) => ({
       `/issues/${issueId}/comments/${commentId}/reactions`,
       { emoji }
     );
-    const comment = mapComment(raw);
+    get().upsertComment(issueId, mapComment(raw));
+  },
+
+  upsertComment: (issueId, comment) => {
+    set((state) => {
+      const existing = state.comments[issueId] ?? [];
+      const index = existing.findIndex((c) => c.id === comment.id);
+      const next =
+        index === -1
+          ? [...existing, comment]
+          : existing.map((c) => (c.id === comment.id ? comment : c));
+      return { comments: { ...state.comments, [issueId]: next } };
+    });
+  },
+
+  removeComment: (issueId, commentId) => {
     set((state) => ({
       comments: {
         ...state.comments,
-        [issueId]: (state.comments[issueId] ?? []).map((c) => (c.id === commentId ? comment : c)),
+        [issueId]: (state.comments[issueId] ?? []).filter((c) => c.id !== commentId),
       },
     }));
   },

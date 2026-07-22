@@ -1,15 +1,36 @@
 "use client";
 
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { StatTile } from "@/components/stat-tile";
+import { BarChart } from "@/components/charts/bar-chart";
+import { DonutChart } from "@/components/charts/donut-chart";
+import { AreaChart } from "@/components/charts/area-chart";
+import { Avatar } from "@/components/ui/avatar";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useActivityStore } from "@/lib/stores/activity-store";
+import { buildWeeklyDueBuckets } from "@/lib/due-date-buckets";
+import {
+  PRIORITY_LABEL,
+  PRIORITY_CHART_COLOR,
+  CATEGORY_ORDER,
+  CATEGORY_LABEL,
+  CATEGORY_COLOR,
+  type IssuePriority,
+} from "@/lib/types";
+
+const PRIORITIES: IssuePriority[] = ["critical", "urgent", "high", "medium", "low", "no_priority"];
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0 },
+};
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -37,6 +58,27 @@ export default function DashboardPage() {
   );
   const myInProgress = myIssues.filter((i) => i.status.category === "started");
 
+  const priorityData = PRIORITIES.map((p) => ({
+    label: PRIORITY_LABEL[p],
+    value: myIssues.filter((i) => i.priority === p).length,
+    color: PRIORITY_CHART_COLOR[p],
+  }));
+
+  const statusData = CATEGORY_ORDER.map((category) => ({
+    label: CATEGORY_LABEL[category],
+    value: myIssues.filter((i) => i.status.category === category).length,
+    color: CATEGORY_COLOR[category],
+  }));
+
+  const workspaceStatusData = CATEGORY_ORDER.map((category) => ({
+    label: CATEGORY_LABEL[category],
+    value: issues.filter((i) => i.status.category === category).length,
+    color: CATEGORY_COLOR[category],
+  }));
+
+  const dueDates = issues.filter((i) => i.dueDate).map((i) => i.dueDate!);
+  const dueBuckets = buildWeeklyDueBuckets(dueDates);
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg">
       <AppSidebar />
@@ -61,7 +103,59 @@ export default function DashboardPage() {
             <StatTile label="Total work items" value={issues.length} />
           </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          {myIssues.length > 0 && (
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={fadeUp}
+              transition={{ duration: 0.3, delay: 0.05 }}
+              className="mt-4 grid gap-4 lg:grid-cols-2"
+            >
+              <div className="rounded-md border border-border bg-surface p-4">
+                <h3 className="text-sm font-medium text-fg">My issues by priority</h3>
+                <BarChart data={priorityData} />
+              </div>
+              <div className="rounded-md border border-border bg-surface p-4">
+                <h3 className="text-sm font-medium text-fg">My issues by status</h3>
+                <div className="mt-3">
+                  <DonutChart data={statusData} />
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={fadeUp}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="mt-4 grid gap-4 lg:grid-cols-2"
+          >
+            <div className="rounded-md border border-border bg-surface p-4">
+              <h3 className="text-sm font-medium text-fg">Workspace issues by status</h3>
+              <div className="mt-3">
+                <DonutChart data={workspaceStatusData} />
+              </div>
+            </div>
+            <div className="rounded-md border border-border bg-surface p-4">
+              <h3 className="text-sm font-medium text-fg">Upcoming deadlines</h3>
+              {dueBuckets.length > 0 ? (
+                <div className="mt-3">
+                  <AreaChart data={dueBuckets} color="#5e9bd6" />
+                </div>
+              ) : (
+                <p className="mt-3 text-xs text-fg-secondary">No issues have a due date yet.</p>
+              )}
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={fadeUp}
+            transition={{ duration: 0.3, delay: 0.15 }}
+            className="mt-6 grid gap-4 lg:grid-cols-2"
+          >
             <div className="rounded-md border border-border bg-surface p-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-medium text-fg">My issues</h2>
@@ -125,9 +219,15 @@ export default function DashboardPage() {
                 })}
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="mt-4 rounded-md border border-border bg-surface p-4">
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={fadeUp}
+            transition={{ duration: 0.3, delay: 0.2 }}
+            className="mt-4 rounded-md border border-border bg-surface p-4"
+          >
             <h2 className="text-sm font-medium text-fg">Recent activity</h2>
             <div className="mt-3 flex flex-col gap-3">
               {recentActivity.length === 0 && (
@@ -135,9 +235,7 @@ export default function DashboardPage() {
               )}
               {recentActivity.map((entry) => (
                 <div key={entry.id} className="flex items-start gap-2.5 text-xs">
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium text-fg ring-1 ring-border">
-                    {entry.author.initials}
-                  </span>
+                  <Avatar person={entry.author} size={20} className="text-fg" />
                   <p className="text-fg-secondary">
                     <span className="font-medium text-fg">{entry.author.name}</span>{" "}
                     {entry.message} on <span className="text-fg">{entry.issueIdentifier}</span>
@@ -146,7 +244,7 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
         </main>
       </div>
     </div>

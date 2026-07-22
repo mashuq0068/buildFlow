@@ -1,69 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { Sun, Moon, Monitor, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
-import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
-import { useCurrentUser } from "@/lib/current-user";
-import { useMembersStore } from "@/lib/stores/members-store";
-import { useWorkspaceStore } from "@/lib/stores/workspace-store";
-import { ApiError } from "@/lib/api-client";
-import { ShieldCheck, User, Lock } from "lucide-react";
-import { toast } from "sonner";
-import type { Role } from "@/lib/types";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { api, ApiError } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
+
+const THEME_OPTIONS = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Monitor },
+];
 
 export default function SettingsPage() {
-  const issues = useIssuesStore((s) => s.issues);
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
-  const currentUser = useCurrentUser();
-  const members = useMembersStore((s) => s.members);
-  const updateMemberRole = useMembersStore((s) => s.updateMemberRole);
-  const workspaces = useWorkspaceStore((s) => s.workspaces);
-  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const updateWorkspace = useWorkspaceStore((s) => s.updateWorkspace);
-  const workspace = workspaces.find((w) => w.id === currentWorkspaceId) ?? workspaces[0];
+  const { theme, setTheme } = useTheme();
+  const router = useRouter();
+  const logout = useAuthStore((s) => s.logout);
 
-  const [nameInput, setNameInput] = useState(workspace?.name ?? "");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setNameInput(workspace?.name ?? "");
-  }, [workspace?.id, workspace?.name]);
+  const mismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
+  const canSubmit =
+    currentPassword.length > 0 && newPassword.length >= 8 && newPassword === confirmPassword;
 
-  const labels = Array.from(
-    new Map(
-      issues.flatMap((i) => i.labels ?? []).map((label) => [label.name, label])
-    ).values()
-  );
-
-  const isAdmin = currentUser?.role === "admin";
-
-  async function handleRoleChange(userId: string, role: Role) {
-    if (!currentWorkspaceId) return;
+  async function handleChangePassword() {
+    if (!canSubmit) return;
+    setSaving(true);
     try {
-      await updateMemberRole(currentWorkspaceId, userId, role);
+      await api.post("/auth/change-password", { currentPassword, newPassword });
+      toast.success("Password updated — please sign in again");
+      await logout().catch(() => {});
+      router.push("/login");
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to update role");
+      toast.error(err instanceof ApiError ? err.message : "Failed to update password");
+    } finally {
+      setSaving(false);
     }
   }
-
-  async function commitWorkspaceName() {
-    const trimmed = nameInput.trim();
-    if (!workspace || !trimmed || trimmed === workspace.name) {
-      setNameInput(workspace?.name ?? "");
-      return;
-    }
-    try {
-      await updateWorkspace(workspace.id, { name: trimmed });
-      toast.success("Workspace name updated");
-    } catch (err) {
-      setNameInput(workspace.name);
-      toast.error(err instanceof ApiError ? err.message : "Failed to update workspace");
-    }
-  }
-
-  if (!workspace) return null;
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg">
@@ -75,106 +59,87 @@ export default function SettingsPage() {
           onSearch={() => setCommandPaletteOpen(true)}
         />
         <main className="flex-1 overflow-y-auto p-4">
-          <section className="rounded-md border border-border bg-surface p-4">
-            <h2 className="text-sm font-medium text-fg">Workspace</h2>
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
-              <div className="flex-1">
-                <label className="text-xs text-fg-secondary">Workspace name</label>
-                <input
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  onBlur={commitWorkspaceName}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") e.currentTarget.blur();
-                    if (e.key === "Escape") setNameInput(workspace.name);
-                  }}
-                  disabled={!isAdmin}
-                  className="mt-1 w-full rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-fg outline-none disabled:opacity-50"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs text-fg-secondary">Workspace URL</label>
-                <input
-                  value={`linear-clone.app/${workspace.slug}`}
-                  disabled
-                  className="mt-1 w-full rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-fg outline-none disabled:opacity-50"
-                />
-              </div>
-            </div>
-            {!isAdmin && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-fg-secondary">
-                <Lock size={12} /> Only admins can edit workspace settings.
-              </p>
-            )}
-          </section>
-
-          <section className="mt-4 rounded-md border border-border bg-surface p-4">
-            <h2 className="text-sm font-medium text-fg">Members</h2>
-            <div className="mt-3 overflow-hidden rounded-md border border-border">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border text-xs text-fg-secondary">
-                    <th className="px-3 py-2 font-medium">Name</th>
-                    <th className="px-3 py-2 font-medium">Role</th>
-                    <th className="px-3 py-2 font-medium" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.map((person) => {
-                    const isCurrent = person.id === currentUser?.id;
-                    const personRole: Role = person.role;
-                    const canEdit = isAdmin && !isCurrent;
-                    return (
-                      <tr key={person.id} className="border-b border-border last:border-0">
-                        <td className="flex items-center gap-2 px-3 py-2 text-fg">
-                          <span className="flex size-5 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium ring-1 ring-border">
-                            {person.initials}
-                          </span>
-                          {person.name}
-                          {isCurrent && <span className="text-xs text-fg-secondary">(you)</span>}
-                        </td>
-                        <td className="px-3 py-2">
-                          <span className="flex items-center gap-1.5 text-xs text-fg-secondary">
-                            {personRole === "admin" ? (
-                              <ShieldCheck size={13} />
-                            ) : (
-                              <User size={13} />
-                            )}
-                            <span className="capitalize">{personRole}</span>
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <button
-                            type="button"
-                            disabled={!canEdit}
-                            onClick={() =>
-                              handleRoleChange(person.id, personRole === "admin" ? "member" : "admin")
-                            }
-                            className="text-xs text-fg-secondary hover:text-fg disabled:opacity-30"
-                          >
-                            Make {personRole === "admin" ? "member" : "admin"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <section className="max-w-md rounded-md border border-border bg-surface p-4">
+            <h2 className="text-sm font-medium text-fg">Theme</h2>
+            <p className="mt-1 text-xs text-fg-secondary">
+              Choose how BuildFlow looks on this device.
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {THEME_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const active = theme === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setTheme(option.value)}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 rounded-md border px-3 py-3 text-xs transition-colors",
+                      active
+                        ? "border-fg bg-surface-hover text-fg"
+                        : "border-border text-fg-secondary hover:bg-surface-hover hover:text-fg"
+                    )}
+                  >
+                    <Icon size={16} />
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
           </section>
 
-          <section className="mt-4 rounded-md border border-border bg-surface p-4">
-            <h2 className="text-sm font-medium text-fg">Labels</h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {labels.map((label) => (
-                <span
-                  key={label.id}
-                  className="flex items-center gap-1.5 rounded border border-border px-2 py-1 text-xs text-fg-secondary"
-                >
-                  <span className="size-2 rounded-full" style={{ backgroundColor: label.color }} />
-                  {label.name}
-                </span>
-              ))}
+          <section className="mt-4 max-w-md rounded-md border border-border bg-surface p-4">
+            <h2 className="text-sm font-medium text-fg">Password</h2>
+            <p className="mt-1 text-xs text-fg-secondary">
+              You&apos;ll be signed out on this device after changing your password.
+            </p>
+            <div className="mt-3 flex flex-col gap-3">
+              <div>
+                <label className="text-xs text-fg-secondary">Current password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-fg outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-fg-secondary">New password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  className="mt-1 w-full rounded-md border border-border bg-bg px-2.5 py-1.5 text-sm text-fg placeholder:text-fg-tertiary outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-fg-secondary">Confirm new password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={cn(
+                    "mt-1 w-full rounded-md border bg-bg px-2.5 py-1.5 text-sm text-fg outline-none",
+                    mismatch ? "border-[#e5484d]" : "border-border"
+                  )}
+                />
+                {mismatch && (
+                  <p className="mt-1 text-[11px] text-[#e5484d]">Passwords don&apos;t match.</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleChangePassword}
+                disabled={!canSubmit || saving}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 self-start rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90",
+                  (!canSubmit || saving) && "opacity-40"
+                )}
+              >
+                {saving && <Loader2 size={13} className="animate-spin" />}
+                Update password
+              </button>
             </div>
           </section>
         </main>

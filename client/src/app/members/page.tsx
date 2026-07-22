@@ -6,6 +6,7 @@ import { AppTopbar } from "@/components/layout/app-topbar";
 import { AddMemberModal } from "@/components/members/add-member-modal";
 import { InviteMemberModal } from "@/components/members/invite-member-modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar } from "@/components/ui/avatar";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useCurrentUser } from "@/lib/current-user";
@@ -180,9 +181,7 @@ export default function MembersPage() {
               return (
                 <div key={person.id} className="rounded-md border border-border bg-surface p-4">
                   <div className="flex items-center gap-2.5">
-                    <span className="flex size-9 items-center justify-center rounded-full bg-surface-hover text-xs font-medium text-fg ring-1 ring-border">
-                      {person.initials}
-                    </span>
+                    <Avatar person={person} size={36} className="text-fg" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-fg">
                         {person.name} {isCurrent && <span className="text-fg-secondary">(you)</span>}

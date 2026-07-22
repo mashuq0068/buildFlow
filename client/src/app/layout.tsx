@@ -18,8 +18,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Linear Clone",
-  description: "A project management app inspired by Linear.",
+  title: "BuildFlow",
+  description: "Plan, track, and ship work — issues, projects, cycles, and goals in one place.",
 };
 
 export default function RootLayout({

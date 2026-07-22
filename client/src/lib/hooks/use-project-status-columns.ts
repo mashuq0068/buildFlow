@@ -15,5 +15,5 @@ export function useProjectStatusColumns(projectId: string | undefined): BoardCol
   return (statuses ?? [])
     .slice()
     .sort((a, b) => a.position - b.position)
-    .map((s) => ({ id: s.id, label: s.name, color: s.color }));
+    .map((s) => ({ id: s.id, label: s.name, color: s.color, icon: s.icon }));
 }

@@ -23,7 +23,11 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
 }
 
 export function signRefreshToken(payload: RefreshTokenPayload) {
-  return jwt.sign(payload, config.jwt.refreshSecret, {
+  // jsonwebtoken signs deterministically — two tokens issued for the same user within
+  // the same second would otherwise be byte-identical and collide on tokenHash's unique
+  // constraint. A random jti guarantees uniqueness regardless of timing.
+  const jti = crypto.randomBytes(16).toString("hex");
+  return jwt.sign({ ...payload, jti }, config.jwt.refreshSecret, {
     expiresIn: `${config.jwt.refreshTtlDays}d`,
   });
 }

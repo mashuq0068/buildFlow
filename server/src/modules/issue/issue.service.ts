@@ -9,6 +9,10 @@ const projectSelect = {
   select: { id: true, name: true, teamKey: true, color: true },
 };
 
+const blockedBySelect = {
+  select: { id: true, identifier: true, title: true, statusId: true },
+};
+
 const detailInclude = {
   assignee: { select: safeUserSelect },
   creator: { select: safeUserSelect },
@@ -16,6 +20,7 @@ const detailInclude = {
   status: true,
   labels: { include: { label: true } },
   attachments: true,
+  blockedBy: blockedBySelect,
   comments: {
     include: { author: { select: safeUserSelect } },
     orderBy: { createdAt: "asc" as const },
@@ -34,6 +39,7 @@ const listInclude = {
   status: true,
   labels: { include: { label: true } },
   attachments: true,
+  blockedBy: blockedBySelect,
 };
 
 const listOrderBy = [{ position: "asc" as const }, { createdAt: "asc" as const }];
@@ -113,6 +119,8 @@ async function createIssue(userId: string, payload: ICreateIssue) {
       assigneeId: payload.assigneeId,
       creatorId: userId,
       parentId: payload.parentId,
+      dueDate: payload.dueDate ? new Date(payload.dueDate) : undefined,
+      blockedById: payload.blockedById,
       aiSuggestedLabels: payload.aiSuggestedLabels ?? [],
       aiSuggestedReasoning: payload.aiSuggestedReasoning,
       labels: { create: labelIds.map((labelId) => ({ labelId })) },
@@ -173,7 +181,11 @@ async function updateIssue(userId: string, id: string, payload: IUpdateIssue) {
     priority: payload.priority,
     assigneeId: payload.assigneeId,
     cycleId: payload.cycleId,
+    blockedById: payload.blockedById,
   };
+  if (payload.dueDate !== undefined) {
+    data.dueDate = payload.dueDate ? new Date(payload.dueDate) : null;
+  }
 
   let newStatus: { id: string; name: string } | null = null;
   if (payload.statusId && payload.statusId !== existing.statusId) {

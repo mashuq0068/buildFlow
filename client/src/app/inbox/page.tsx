@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useNotificationsStore } from "@/lib/stores/notifications-store";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 function timeAgo(iso: string) {
@@ -56,9 +57,7 @@ export default function InboxPage() {
                 !n.read && "bg-bg-secondary"
               )}
             >
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium text-fg ring-1 ring-border">
-                {n.actor.initials}
-              </span>
+              <Avatar person={n.actor} size={24} className="text-fg" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-fg">
                   <span className="font-medium">{n.actor.name}</span> {n.message}{" "}

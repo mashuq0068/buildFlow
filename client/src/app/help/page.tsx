@@ -49,12 +49,12 @@ export default function HelpPage() {
           </div>
 
           <div className="mt-4 max-w-xl rounded-md border border-border bg-surface p-4">
-            <h2 className="text-sm font-medium text-fg">About this project</h2>
+            <h2 className="text-sm font-medium text-fg">About BuildFlow</h2>
             <p className="mt-2 text-sm leading-relaxed text-fg-secondary">
-              This is a portfolio project cloning the core UX of Linear — Kanban + list views,
-              comments, activity logs, cycles, and analytics — built with Next.js, Tailwind,
-              Zustand, and dnd-kit on the frontend, and Express + Prisma + PostgreSQL on the
-              backend.
+              BuildFlow is where your team plans, tracks, and ships work — boards and lists for
+              issues, threaded discussions with live updates, cycles for time-boxed planning,
+              goals and milestones for the bigger picture, and analytics to see how it&apos;s all
+              trending.
             </p>
           </div>
         </main>

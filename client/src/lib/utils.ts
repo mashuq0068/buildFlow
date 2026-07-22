@@ -12,3 +12,13 @@ export function stripHtml(html: string) {
 export function isEmptyHtml(html: string) {
   return stripHtml(html).length === 0;
 }
+
+export function isIssueOverdue(dueDate: string | undefined, category: string) {
+  if (!dueDate) return false;
+  if (category === "completed" || category === "canceled") return false;
+  return new Date(dueDate) < new Date();
+}
+
+export function formatDueDate(dueDate: string) {
+  return new Date(dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}

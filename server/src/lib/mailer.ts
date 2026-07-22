@@ -41,7 +41,7 @@ export function inviteEmailHtml(params: {
     <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
       <h2 style="margin-bottom: 4px;">You're invited to join ${params.workspaceName}</h2>
       <p style="color: #444; line-height: 1.5;">
-        ${params.inviterName} invited you to join <strong>${params.workspaceName}</strong> as ${roleLabel} on Linear Clone.
+        ${params.inviterName} invited you to join <strong>${params.workspaceName}</strong> as ${roleLabel} on BuildFlow.
       </p>
       <p style="margin: 24px 0;">
         <a href="${params.acceptUrl}"

@@ -14,6 +14,8 @@ export interface ICreateIssue {
   priority?: IssuePriority;
   cycleId?: string;
   parentId?: string;
+  dueDate?: string;
+  blockedById?: string;
   labels?: ILabelInput[];
   aiSuggestedLabels?: string[];
   aiSuggestedReasoning?: string;
@@ -26,5 +28,7 @@ export interface IUpdateIssue {
   priority?: IssuePriority;
   assigneeId?: string | null;
   cycleId?: string | null;
+  dueDate?: string | null;
+  blockedById?: string | null;
   labels?: ILabelInput[];
 }

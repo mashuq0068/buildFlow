@@ -39,6 +39,8 @@ import { useCurrentUser } from "@/lib/current-user";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { NewWorkspaceModal } from "@/components/workspace/new-workspace-modal";
+import { BrandLogo } from "@/components/brand-logo";
+import { Avatar } from "@/components/ui/avatar";
 
 const NAV_SECTIONS = [
   {
@@ -65,6 +67,7 @@ const NAV_SECTIONS = [
     items: [
       { label: "Analytics", icon: BarChart3, href: "/analytics" },
       { label: "Members", icon: Users, href: "/members" },
+      { label: "Permissions", icon: ShieldCheck, href: "/permissions" },
     ],
   },
 ];
@@ -123,6 +126,15 @@ export function AppSidebar() {
           sidebarCollapsed ? "md:w-14" : "md:w-60"
         )}
       >
+        <div
+          className={cn(
+            "flex shrink-0 items-center px-3 pt-3",
+            sidebarCollapsed && "md:justify-center md:px-0"
+          )}
+        >
+          <BrandLogo wordmarkClassName={cn(sidebarCollapsed && "md:hidden")} />
+        </div>
+
         <div className="flex shrink-0 items-center gap-1 px-3 py-3">
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
@@ -289,10 +301,10 @@ export function AppSidebar() {
                   {!sidebarCollapsed && (
                     <Link
                       href={chatHref}
-                      title={`${project.name} discussion`}
+                      title={`${project.name} discussion — chat, mentions, replies`}
                       className={cn(
-                        "shrink-0 rounded-md p-1.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-hover",
-                        chatActive ? "text-fg opacity-100" : "text-fg-tertiary"
+                        "shrink-0 rounded-md p-1.5 transition-colors hover:bg-surface-hover hover:text-fg",
+                        chatActive ? "bg-surface-hover text-fg" : "text-fg-tertiary"
                       )}
                     >
                       <MessageSquare size={13} />
@@ -334,9 +346,7 @@ export function AppSidebar() {
                   sidebarCollapsed && "md:justify-center md:px-0"
                 )}
               >
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium text-fg ring-1 ring-border">
-                  {currentUser?.initials}
-                </span>
+                <Avatar person={currentUser ?? { name: "", initials: "" }} size={20} className="text-fg" />
                 <span className={cn("flex min-w-0 flex-1 flex-col", sidebarCollapsed && "md:hidden")}>
                   <span className="truncate text-xs font-medium text-fg">{currentUser?.name}</span>
                   <span className="truncate text-[11px] text-fg-secondary">

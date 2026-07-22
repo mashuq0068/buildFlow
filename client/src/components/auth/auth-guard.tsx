@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { RefreshCw } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { BrandLogo } from "@/components/brand-logo";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { useMembersStore } from "@/lib/stores/members-store";
@@ -10,13 +12,32 @@ import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useCyclesStore } from "@/lib/stores/cycles-store";
 import { useGoalsStore } from "@/lib/stores/goals-store";
+import { useMilestonesStore } from "@/lib/stores/milestones-store";
 import { useNotificationsStore } from "@/lib/stores/notifications-store";
 import { useActivityStore } from "@/lib/stores/activity-store";
 
 function FullScreenSpinner() {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-bg">
-      <div className="size-5 animate-spin rounded-full border-2 border-border-strong border-t-fg" />
+    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-bg">
+      <motion.div
+        animate={{ scale: [1, 1.08, 1] }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <BrandLogo badgeClassName="size-11" iconSize={24} wordmarkClassName="hidden" />
+      </motion.div>
+      <div className="flex items-center gap-1.5 text-xs text-fg-secondary">
+        <span>Loading your workspace</span>
+        <span className="flex gap-0.5">
+          {[0, 1, 2].map((i) => (
+            <motion.span
+              key={i}
+              className="size-1 rounded-full bg-fg-tertiary"
+              animate={{ opacity: [0.2, 1, 0.2] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2, ease: "easeInOut" }}
+            />
+          ))}
+        </span>
+      </div>
     </div>
   );
 }
@@ -86,6 +107,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       useIssuesStore.getState().fetchIssues(currentWorkspaceId),
       useCyclesStore.getState().fetchCycles(currentWorkspaceId),
       useGoalsStore.getState().fetchGoals(currentWorkspaceId),
+      useMilestonesStore.getState().fetchMilestones(currentWorkspaceId),
       useIssuesStore.getState().fetchFavorites(),
       useIssuesStore.getState().fetchDrafts(currentWorkspaceId),
       useNotificationsStore.getState().fetchNotifications(),

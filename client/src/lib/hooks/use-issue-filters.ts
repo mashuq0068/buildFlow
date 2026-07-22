@@ -4,11 +4,12 @@ import type { Issue, IssuePriority } from "@/lib/types";
 export type IssueSort = "manual" | "priority" | "title";
 
 const PRIORITY_RANK: Record<IssuePriority, number> = {
-  urgent: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-  no_priority: 4,
+  critical: 0,
+  urgent: 1,
+  high: 2,
+  medium: 3,
+  low: 4,
+  no_priority: 5,
 };
 
 export function useIssueFilters(issues: Issue[]) {

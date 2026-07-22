@@ -15,6 +15,8 @@
   --accent: #0a0a0a;
   --accent-fg: #ffffff;
   --shadow-elevation: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06);
+  --mention-fg: #2563eb;
+  --mention-bg: rgba(37, 99, 235, 0.12);
 }
 
 .dark {
@@ -30,6 +32,8 @@
   --accent: #f7f8f8;
   --accent-fg: #0a0a0a;
   --shadow-elevation: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 4px 16px rgba(0, 0, 0, 0.4);
+  --mention-fg: #60a5fa;
+  --mention-bg: rgba(96, 165, 250, 0.16);
 }
 
 @theme inline {
@@ -54,6 +58,21 @@ body {
   background: var(--bg);
   color: var(--fg);
   letter-spacing: -0.011em;
+}
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+select,
+summary,
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 ::selection {
@@ -176,11 +195,11 @@ body {
 }
 
 .prose-editor .mention {
-  background: var(--surface-hover);
+  background: var(--mention-bg);
   border-radius: 4px;
   padding: 0.05em 0.35em;
-  color: var(--fg);
-  font-weight: 500;
+  color: var(--mention-fg);
+  font-weight: 600;
 }
 
 .prose-editor .editor-image {

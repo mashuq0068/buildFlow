@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Loader2, ShieldCheck, User } from "lucide-react";
 import { api, ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils";
 
 interface InviteDetails {
@@ -71,10 +72,8 @@ export default function AcceptInvitePage() {
     <div className="flex min-h-screen w-full items-center justify-center bg-bg p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-accent-fg">
-            L
-          </span>
-          <h1 className="text-base font-semibold text-fg">Join your team on Linear Clone</h1>
+          <BrandLogo className="flex-col gap-1.5" iconSize={20} badgeClassName="size-9" />
+          <h1 className="text-base font-semibold text-fg">Join your team on BuildFlow</h1>
         </div>
 
         {loadState === "loading" && (

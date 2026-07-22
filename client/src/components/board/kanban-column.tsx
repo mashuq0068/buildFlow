@@ -3,27 +3,35 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { IssueCard } from "./issue-card";
+import { STATUS_ICONS, DefaultStatusIcon } from "@/lib/status-icons";
 import type { Issue } from "@/lib/types";
 
 export function KanbanColumn({
   id,
   label,
   color,
+  icon,
   issues,
   draggable = true,
 }: {
   id: string;
   label: string;
   color?: string;
+  icon?: string;
   issues: Issue[];
   draggable?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id, disabled: !draggable });
+  const ColumnIcon = icon ? STATUS_ICONS[icon] ?? DefaultStatusIcon : null;
 
   return (
     <div className="flex w-72 shrink-0 flex-col">
       <div className="mb-2 flex items-center gap-2 px-1 text-xs font-medium text-fg-secondary">
-        {color && <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />}
+        {ColumnIcon ? (
+          <ColumnIcon size={13} className="shrink-0" style={{ color }} />
+        ) : (
+          color && <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        )}
         <span>{label}</span>
         <span className="text-fg-secondary">{issues.length}</span>
       </div>

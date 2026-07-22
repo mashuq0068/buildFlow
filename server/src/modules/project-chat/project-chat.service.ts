@@ -5,6 +5,7 @@ import { safeUserSelect } from "../../lib/user-select";
 import { extractMentionedUserIds } from "../../lib/mentions";
 import { aggregateReactions } from "../../lib/reactions";
 import { notificationService } from "../notification/notification.service";
+import { getIO } from "../../lib/socket";
 
 interface AttachmentInput {
   name: string;
@@ -113,7 +114,9 @@ async function createMessage(
     await notificationService.createNotification(recipientId, userId, notificationMessage);
   }
 
-  return serialize(message, userId);
+  const result = serialize(message, userId);
+  getIO().to(`project:${projectId}`).emit("chat:created", { projectId, message: result });
+  return result;
 }
 
 async function updateMessage(userId: string, messageId: string, body: string) {
@@ -135,7 +138,12 @@ async function updateMessage(userId: string, messageId: string, body: string) {
     data: { body, mentionedUserIds, editedAt: new Date() },
     include,
   });
-  return serialize(message, userId);
+  const result = serialize(message, userId);
+  getIO().to(`project:${existing.projectId}`).emit("chat:updated", {
+    projectId: existing.projectId,
+    message: result,
+  });
+  return result;
 }
 
 async function deleteMessage(userId: string, messageId: string) {
@@ -152,6 +160,10 @@ async function deleteMessage(userId: string, messageId: string) {
   }
 
   await prisma.projectChatMessage.delete({ where: { id: messageId } });
+  getIO().to(`project:${existing.projectId}`).emit("chat:deleted", {
+    projectId: existing.projectId,
+    messageId,
+  });
 }
 
 async function toggleReaction(userId: string, messageId: string, emoji: string) {
@@ -175,7 +187,12 @@ async function toggleReaction(userId: string, messageId: string, emoji: string) 
     where: { id: messageId },
     include,
   });
-  return serialize(message, userId);
+  const result = serialize(message, userId);
+  getIO().to(`project:${existing.projectId}`).emit("chat:updated", {
+    projectId: existing.projectId,
+    message: result,
+  });
+  return result;
 }
 
 export const projectChatService = {

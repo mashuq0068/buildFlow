@@ -9,6 +9,7 @@ export interface AggregatedReaction {
   count: number;
   reactedByMe: boolean;
   userNames: string[];
+  userIds: string[];
 }
 
 export function aggregateReactions(
@@ -22,10 +23,12 @@ export function aggregateReactions(
       count: 0,
       reactedByMe: false,
       userNames: [],
+      userIds: [],
     };
     entry.count += 1;
     if (r.userId === currentUserId) entry.reactedByMe = true;
     entry.userNames.push(r.user.name);
+    entry.userIds.push(r.userId);
     map.set(r.emoji, entry);
   }
   return Array.from(map.values());

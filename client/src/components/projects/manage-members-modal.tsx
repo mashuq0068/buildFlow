@@ -8,6 +8,7 @@ import { X } from "lucide-react";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useMembersStore } from "@/lib/stores/members-store";
 import { ApiError } from "@/lib/api-client";
+import { Avatar } from "@/components/ui/avatar";
 import type { Project } from "@/lib/types";
 
 export function ManageMembersModal({
@@ -103,9 +104,7 @@ export function ManageMembersModal({
                             key={m.id}
                             className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-hover"
                           >
-                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium ring-1 ring-border">
-                              {m.initials}
-                            </span>
+                            <Avatar person={m} size={24} />
                             <span className="min-w-0 flex-1 truncate text-sm text-fg">{m.name}</span>
                             {project.lead?.id === m.id ? (
                               <span className="shrink-0 text-[10px] text-fg-tertiary">Lead</span>
@@ -133,9 +132,7 @@ export function ManageMembersModal({
                             key={m.id}
                             className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-hover"
                           >
-                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium ring-1 ring-border">
-                              {m.initials}
-                            </span>
+                            <Avatar person={m} size={24} />
                             <span className="min-w-0 flex-1 truncate text-sm text-fg">{m.name}</span>
                             <button
                               type="button"

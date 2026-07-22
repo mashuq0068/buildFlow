@@ -7,7 +7,7 @@ import { PRIORITY_LABEL, type IssuePriority } from "@/lib/types";
 import type { UseIssueFiltersResult, IssueSort } from "@/lib/hooks/use-issue-filters";
 import { exportIssuesToCsv } from "@/lib/csv-export";
 
-const PRIORITIES: IssuePriority[] = ["urgent", "high", "medium", "low", "no_priority"];
+const PRIORITIES: IssuePriority[] = ["critical", "urgent", "high", "medium", "low", "no_priority"];
 
 export function IssueFilterBar({
   filters,

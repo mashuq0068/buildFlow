@@ -9,11 +9,15 @@ interface ServerMember {
   email: string;
   initials: string;
   title: string | null;
+  avatarUrl?: string | null;
   role: string;
 }
 
 function toMember(m: ServerMember): Member {
-  return mapMember({ id: m.userId, name: m.name, email: m.email, initials: m.initials, title: m.title }, m.role);
+  return mapMember(
+    { id: m.userId, name: m.name, email: m.email, initials: m.initials, title: m.title, avatarUrl: m.avatarUrl },
+    m.role
+  );
 }
 
 interface AddMemberInput {

@@ -12,6 +12,8 @@ import {
   DEFAULT_ADMIN_ACCOUNT,
   DEFAULT_MEMBER_ACCOUNT,
 } from "@/lib/demo-accounts";
+import { BrandLogo } from "@/components/brand-logo";
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 type Role = "admin" | "member";
@@ -57,10 +59,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen w-full items-center justify-center bg-bg p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-accent-fg">
-            L
-          </span>
-          <h1 className="text-base font-semibold text-fg">Sign in to Linear Clone</h1>
+          <BrandLogo className="flex-col gap-1.5" iconSize={20} badgeClassName="size-9" />
+          <h1 className="text-base font-semibold text-fg">Sign in to BuildFlow</h1>
         </div>
 
         {role === null ? (
@@ -163,9 +163,7 @@ export default function LoginPage() {
                         email === account.email && "bg-surface-hover"
                       )}
                     >
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-medium text-fg ring-1 ring-border">
-                        {account.initials}
-                      </span>
+                      <Avatar person={account} size={28} className="text-fg" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-medium text-fg">{account.name}</p>
                         <p className="truncate text-[11px] text-fg-secondary">{account.title}</p>
