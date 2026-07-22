@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useCyclesStore } from "@/lib/stores/cycles-store";
+import { useIssuesStore } from "@/lib/stores/issues-store";
 import { ApiError } from "@/lib/api-client";
 import { confirmAction } from "@/lib/stores/confirm-store";
 import type { Cycle } from "@/lib/types";
@@ -28,6 +29,8 @@ export function NewCycleModal({
   const createCycle = useCyclesStore((s) => s.createCycle);
   const updateCycle = useCyclesStore((s) => s.updateCycle);
   const deleteCycle = useCyclesStore((s) => s.deleteCycle);
+  const issues = useIssuesStore((s) => s.issues);
+  const updateIssue = useIssuesStore((s) => s.updateIssue);
   const isEditing = Boolean(editCycle);
 
   const [name, setName] = useState("");
@@ -35,8 +38,11 @@ export function NewCycleModal({
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   const [startDate, setStartDate] = useState(DEFAULT_START);
   const [endDate, setEndDate] = useState(DEFAULT_END);
+  const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const projectIssues = issues.filter((i) => i.projectId === projectId && !i.archived);
 
   useEffect(() => {
     if (!open) return;
@@ -46,6 +52,7 @@ export function NewCycleModal({
       setProjectId(editCycle.projectId);
       setStartDate(editCycle.startDate);
       setEndDate(editCycle.endDate);
+      setSelectedIssueIds(issues.filter((i) => i.cycleId === editCycle.id).map((i) => i.id));
     } else {
       resetForm();
     }
@@ -58,6 +65,13 @@ export function NewCycleModal({
     setProjectId(projects[0]?.id ?? "");
     setStartDate(DEFAULT_START);
     setEndDate(DEFAULT_END);
+    setSelectedIssueIds([]);
+  }
+
+  function toggleIssue(issueId: string) {
+    setSelectedIssueIds((prev) =>
+      prev.includes(issueId) ? prev.filter((id) => id !== issueId) : [...prev, issueId]
+    );
   }
 
   async function handleSubmit() {
@@ -66,6 +80,7 @@ export function NewCycleModal({
 
     setCreating(true);
     try {
+      let cycleId: string;
       if (editCycle) {
         await updateCycle(editCycle.id, {
           name: trimmed,
@@ -73,17 +88,30 @@ export function NewCycleModal({
           startDate,
           endDate,
         });
+        cycleId = editCycle.id;
         toast.success(`${trimmed} updated`);
       } else {
-        await createCycle({
+        const cycle = await createCycle({
           name: trimmed,
           description: description.trim() || undefined,
           projectId,
           startDate,
           endDate,
         });
+        cycleId = cycle.id;
         toast.success(`${trimmed} created`);
       }
+
+      const previouslyAssigned = editCycle
+        ? issues.filter((i) => i.cycleId === editCycle.id).map((i) => i.id)
+        : [];
+      const toAdd = selectedIssueIds.filter((id) => !previouslyAssigned.includes(id));
+      const toRemove = previouslyAssigned.filter((id) => !selectedIssueIds.includes(id));
+      await Promise.all([
+        ...toAdd.map((id) => updateIssue(id, { cycleId })),
+        ...toRemove.map((id) => updateIssue(id, { cycleId: null })),
+      ]);
+
       resetForm();
       onOpenChange(false);
     } catch (err) {
@@ -191,7 +219,10 @@ export function NewCycleModal({
                     <label className="text-xs text-fg-secondary">Project</label>
                     <select
                       value={projectId}
-                      onChange={(e) => setProjectId(e.target.value)}
+                      onChange={(e) => {
+                        setProjectId(e.target.value);
+                        setSelectedIssueIds([]);
+                      }}
                       disabled={isEditing}
                       className="mt-1 w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-fg outline-none disabled:opacity-50"
                     >
@@ -201,6 +232,37 @@ export function NewCycleModal({
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-fg-secondary">
+                      Issues {selectedIssueIds.length > 0 && `(${selectedIssueIds.length} selected)`}
+                    </label>
+                    <div className="mt-1.5 flex max-h-40 flex-col gap-0.5 overflow-y-auto rounded-md border border-border p-1.5">
+                      {projectIssues.length === 0 ? (
+                        <p className="px-1.5 py-1 text-xs text-fg-tertiary">
+                          No issues in this project yet.
+                        </p>
+                      ) : (
+                        projectIssues.map((issue) => (
+                          <label
+                            key={issue.id}
+                            className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm text-fg hover:bg-surface-hover"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedIssueIds.includes(issue.id)}
+                              onChange={() => toggleIssue(issue.id)}
+                              className="size-3.5 shrink-0 rounded border-border-strong accent-fg"
+                            />
+                            <span className="shrink-0 text-xs text-fg-tertiary">
+                              {issue.identifier}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate">{issue.title}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex gap-3">
