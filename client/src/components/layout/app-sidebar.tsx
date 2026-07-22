@@ -41,6 +41,8 @@ import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { NewWorkspaceModal } from "@/components/workspace/new-workspace-modal";
 import { BrandLogo } from "@/components/brand-logo";
 import { Avatar } from "@/components/ui/avatar";
+import { useProjectUnreadCount, useTotalUnreadChatCount } from "@/lib/chat-unread";
+import type { Project } from "@/lib/types";
 
 const NAV_SECTIONS = [
   {
@@ -48,6 +50,7 @@ const NAV_SECTIONS = [
     items: [
       { label: "Dashboard", icon: LayoutDashboard, href: "/" },
       { label: "Inbox", icon: Inbox, href: "/inbox" },
+      { label: "Chats", icon: MessageSquare, href: "/chats" },
       { label: "My Issues", icon: CircleDot, href: "/my-issues" },
       { label: "Favorites", icon: Star, href: "/favorites" },
       { label: "Drafts", icon: FileEdit, href: "/drafts" },
@@ -243,7 +246,12 @@ export function AppSidebar() {
                       )}
                     >
                       <item.icon size={15} strokeWidth={2} className="shrink-0" />
-                      <span className={cn(sidebarCollapsed && "md:hidden")}>{item.label}</span>
+                      <span className={cn("flex-1", sidebarCollapsed && "md:hidden")}>
+                        {item.label}
+                      </span>
+                      {item.href === "/chats" && (
+                        <ChatUnreadBadge collapsed={sidebarCollapsed} />
+                      )}
                     </Link>
                   );
                 })}
@@ -274,45 +282,15 @@ export function AppSidebar() {
                 No projects yet — ask an admin to add you to one.
               </p>
             )}
-            {projects.map((project) => {
-              const href = `/projects/board?id=${project.id}`;
-              const chatHref = `/projects/chat?id=${project.id}`;
-              const active = pathname === "/projects/board" && activeProjectId === project.id;
-              const chatActive = pathname === "/projects/chat" && activeProjectId === project.id;
-              return (
-                <div key={project.id} className="group flex items-center gap-0.5">
-                  <Link
-                    href={href}
-                    title={project.name}
-                    className={cn(
-                      "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-surface-hover hover:text-fg",
-                      active ? "bg-surface-hover text-fg" : "text-fg-secondary",
-                      sidebarCollapsed && "md:justify-center md:px-0"
-                    )}
-                  >
-                    <span
-                      className="size-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: project.color }}
-                    />
-                    <span className={cn("truncate", sidebarCollapsed && "md:hidden")}>
-                      {project.name}
-                    </span>
-                  </Link>
-                  {!sidebarCollapsed && (
-                    <Link
-                      href={chatHref}
-                      title={`${project.name} discussion — chat, mentions, replies`}
-                      className={cn(
-                        "shrink-0 rounded-md p-1.5 transition-colors hover:bg-surface-hover hover:text-fg",
-                        chatActive ? "bg-surface-hover text-fg" : "text-fg-tertiary"
-                      )}
-                    >
-                      <MessageSquare size={13} />
-                    </Link>
-                  )}
-                </div>
-              );
-            })}
+            {projects.map((project) => (
+              <ProjectNavRow
+                key={project.id}
+                project={project}
+                pathname={pathname}
+                activeProjectId={activeProjectId}
+                sidebarCollapsed={sidebarCollapsed}
+              />
+            ))}
           </nav>
         </div>
 
@@ -388,5 +366,70 @@ export function AppSidebar() {
       </aside>
       <NewWorkspaceModal open={newWorkspaceOpen} onOpenChange={setNewWorkspaceOpen} />
     </>
+  );
+}
+
+function ChatUnreadBadge({ collapsed }: { collapsed: boolean }) {
+  const total = useTotalUnreadChatCount();
+  if (total === 0) return null;
+  return (
+    <span
+      className={cn(
+        "flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-fg",
+        collapsed && "md:hidden"
+      )}
+    >
+      {total > 99 ? "99+" : total}
+    </span>
+  );
+}
+
+function ProjectNavRow({
+  project,
+  pathname,
+  activeProjectId,
+  sidebarCollapsed,
+}: {
+  project: Project;
+  pathname: string;
+  activeProjectId: string | null;
+  sidebarCollapsed: boolean;
+}) {
+  const href = `/projects/board?id=${project.id}`;
+  const chatHref = `/projects/chat?id=${project.id}`;
+  const active = pathname === "/projects/board" && activeProjectId === project.id;
+  const chatActive = pathname === "/projects/chat" && activeProjectId === project.id;
+  const unread = useProjectUnreadCount(project.id);
+
+  return (
+    <div className="group flex items-center gap-0.5">
+      <Link
+        href={href}
+        title={project.name}
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-surface-hover hover:text-fg",
+          active ? "bg-surface-hover text-fg" : "text-fg-secondary",
+          sidebarCollapsed && "md:justify-center md:px-0"
+        )}
+      >
+        <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: project.color }} />
+        <span className={cn("truncate", sidebarCollapsed && "md:hidden")}>{project.name}</span>
+      </Link>
+      {!sidebarCollapsed && (
+        <Link
+          href={chatHref}
+          title={`${project.name} discussion — chat, mentions, replies`}
+          className={cn(
+            "relative shrink-0 rounded-md p-1.5 transition-colors hover:bg-surface-hover hover:text-fg",
+            chatActive ? "bg-surface-hover text-fg" : "text-fg-tertiary"
+          )}
+        >
+          <MessageSquare size={13} />
+          {unread > 0 && (
+            <span className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-accent" />
+          )}
+        </Link>
+      )}
+    </div>
   );
 }

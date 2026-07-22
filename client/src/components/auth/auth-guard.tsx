@@ -15,6 +15,7 @@ import { useGoalsStore } from "@/lib/stores/goals-store";
 import { useMilestonesStore } from "@/lib/stores/milestones-store";
 import { useNotificationsStore } from "@/lib/stores/notifications-store";
 import { useActivityStore } from "@/lib/stores/activity-store";
+import { useProjectChatStore } from "@/lib/stores/project-chat-store";
 
 function FullScreenSpinner() {
   return (
@@ -123,6 +124,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [status, currentWorkspaceId, retryCount]);
+
+  useEffect(() => {
+    if (!workspaceDataLoaded || loadError) return;
+    const chatStore = useProjectChatStore.getState();
+    for (const project of useProjectsStore.getState().projects) {
+      if (!chatStore.loadedProjectIds.includes(project.id)) {
+        chatStore.fetchMessages(project.id).catch(() => {});
+      }
+    }
+  }, [workspaceDataLoaded, loadError]);
 
   const isPublicPath = pathname === "/login" || pathname.startsWith("/invite/");
 

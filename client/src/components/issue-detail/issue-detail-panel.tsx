@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useMembersStore } from "@/lib/stores/members-store";
+import { useCyclesStore } from "@/lib/stores/cycles-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api-client";
 import { confirmAction } from "@/lib/stores/confirm-store";
@@ -53,6 +54,7 @@ export function IssueDetailPanel() {
   const archiveIssue = useIssuesStore((s) => s.archiveIssue);
   const duplicateIssue = useIssuesStore((s) => s.duplicateIssue);
   const members = useMembersStore((s) => s.members);
+  const cycles = useCyclesStore((s) => s.cycles);
   const allIssues = useIssuesStore((s) => s.issues);
   const currentUser = useCurrentUser();
   const statusColumns = useProjectStatusColumns(issue?.projectId);
@@ -75,6 +77,7 @@ export function IssueDetailPanel() {
     : [];
 
   const StatusIcon = issue ? STATUS_ICONS[issue.status.icon] ?? DefaultStatusIcon : DefaultStatusIcon;
+  const projectCycles = issue ? cycles.filter((c) => c.projectId === issue.projectId) : [];
 
   useEffect(() => {
     if (selectedIssueId) {
@@ -312,6 +315,22 @@ export function IssueDetailPanel() {
                     {members.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </PropertyRow>
+
+                <PropertyRow label="Cycle">
+                  <select
+                    value={issue.cycleId ?? ""}
+                    onChange={(e) => handleUpdate({ cycleId: e.target.value || null })}
+                    disabled={projectCycles.length === 0}
+                    className="rounded border border-border bg-surface px-2 py-1 text-xs text-fg outline-none disabled:opacity-50"
+                  >
+                    <option value="">No cycle</option>
+                    {projectCycles.map((cycle) => (
+                      <option key={cycle.id} value={cycle.id}>
+                        {cycle.name}
                       </option>
                     ))}
                   </select>

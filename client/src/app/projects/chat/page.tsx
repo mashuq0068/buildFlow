@@ -13,6 +13,7 @@ import { DiscussionThread } from "@/components/discussion/discussion-thread";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useProjectChatStore } from "@/lib/stores/project-chat-store";
+import { useChatReadStore } from "@/lib/stores/chat-read-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { useProjectRoom } from "@/lib/hooks/use-live-room";
 
@@ -28,6 +29,7 @@ function ProjectChatContent() {
   const updateMessage = useProjectChatStore((s) => s.updateMessage);
   const deleteMessage = useProjectChatStore((s) => s.deleteMessage);
   const toggleMessageReaction = useProjectChatStore((s) => s.toggleMessageReaction);
+  const markSeen = useChatReadStore((s) => s.markSeen);
   const currentUser = useCurrentUser();
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
@@ -39,6 +41,11 @@ function ProjectChatContent() {
   useEffect(() => {
     if (project) fetchMessages(projectId).catch(() => toast.error("Failed to load discussion"));
   }, [project, projectId, fetchMessages]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    markSeen(projectId);
+  }, [projectId, messages.length, markSeen]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg">
