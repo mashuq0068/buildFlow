@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { api } from "@/lib/api-client";
 import { mapIssue, mapComment, mapActivity, mapDraft, priorityToServer } from "@/lib/api/mappers";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useStatusesStore } from "@/lib/stores/statuses-store";
 import { toggleReactionLocally } from "@/lib/reactions";
 import type { Issue, IssuePriority, Comment, ActivityEntry, Draft } from "@/lib/types";
 import type { UploadedFile } from "@/lib/upload";
@@ -117,11 +118,29 @@ export const useIssuesStore = create<IssuesState>()((set, get) => ({
   },
 
   moveIssue: async (issueId, statusId) => {
-    const issue = get().issues.find((i) => i.id === issueId);
-    if (!issue || issue.status.id === statusId) return;
-    const raw = await api.patch<ServerIssue>(`/issues/${issueId}/status`, { statusId });
-    const updated = mapIssue(raw);
-    set((state) => ({ issues: state.issues.map((i) => (i.id === issueId ? updated : i)) }));
+    const previous = get().issues.find((i) => i.id === issueId);
+    if (!previous || previous.status.id === statusId) return;
+
+    // Optimistically flip the column right away — otherwise the board's drag-preview
+    // state clears on drop and falls back to this (still-old) store data until the
+    // request resolves, which reads as the card snapping back before jumping forward.
+    const targetStatus = useStatusesStore
+      .getState()
+      .byProject[previous.projectId]?.find((s) => s.id === statusId);
+    if (targetStatus) {
+      set((state) => ({
+        issues: state.issues.map((i) => (i.id === issueId ? { ...i, status: targetStatus } : i)),
+      }));
+    }
+
+    try {
+      const raw = await api.patch<ServerIssue>(`/issues/${issueId}/status`, { statusId });
+      const updated = mapIssue(raw);
+      set((state) => ({ issues: state.issues.map((i) => (i.id === issueId ? updated : i)) }));
+    } catch (err) {
+      set((state) => ({ issues: state.issues.map((i) => (i.id === issueId ? previous : i)) }));
+      throw err;
+    }
   },
 
   reorderWithinStatus: async (projectId, statusId, orderedIds) => {
