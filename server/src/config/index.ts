@@ -1,10 +1,16 @@
 import "dotenv/config";
 
+const nodeEnv = process.env.NODE_ENV ?? "development";
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
-  clientOrigin: process.env.CLIENT_ORIGIN ?? "http://localhost:3000",
+  clientOrigin: [process.env.CLIENT_ORIGIN , "http://localhost:3000"],
   databaseUrl: process.env.DATABASE_URL,
-  nodeEnv: process.env.NODE_ENV ?? "development",
+  nodeEnv,
+  // Socket.IO needs one long-running process — Vercel's serverless functions can't
+  // hold that open, so sockets stay local-only unless NODE_ENV is overridden on a
+  // host that does support it (Railway, Render, a VM).
+  enableSockets: nodeEnv !== "production",
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? "dev-access-secret",
     refreshSecret: process.env.JWT_REFRESH_SECRET ?? "dev-refresh-secret",

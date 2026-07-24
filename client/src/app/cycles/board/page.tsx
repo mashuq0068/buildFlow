@@ -9,8 +9,10 @@ import { ListView } from "@/components/list/list-view";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useCyclesStore } from "@/lib/stores/cycles-store";
+import { useStatusesStore } from "@/lib/stores/statuses-store";
 import { useProjectStatusColumns } from "@/lib/hooks/use-project-status-columns";
 import { getStatusColumnId } from "@/lib/board-columns";
+import { PageLoader } from "@/components/ui/spinner";
 
 function CycleBoardContent() {
   const searchParams = useSearchParams();
@@ -23,6 +25,9 @@ function CycleBoardContent() {
     [allIssues, cycleId]
   );
   const columns = useProjectStatusColumns(cycle?.projectId);
+  const statusesLoaded = useStatusesStore((s) =>
+    cycle ? s.loadedProjectIds.includes(cycle.projectId) : false
+  );
 
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const setNewIssueOpen = useUIStore((s) => s.setNewIssueOpen);
@@ -38,7 +43,9 @@ function CycleBoardContent() {
           onNewIssue={() => setNewIssueOpen(true)}
           onSearch={() => setCommandPaletteOpen(true)}
         />
-        {issues.length === 0 ? (
+        {!statusesLoaded ? (
+          <PageLoader label="Loading board..." />
+        ) : issues.length === 0 ? (
           <p className="p-6 text-center text-sm text-fg-secondary">
             No issues are scheduled in this cycle yet.
           </p>

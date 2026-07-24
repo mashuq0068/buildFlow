@@ -19,9 +19,12 @@ function parseCookies(header: string): Record<string, string> {
   }, {} as Record<string, string>);
 }
 
+const corsOrigin = config.clientOrigin.filter((origin): origin is string => Boolean(origin));
+
 export function initSocket(httpServer: HttpServer): Server {
   io = new Server(httpServer, {
-    cors: { origin: config.clientOrigin, credentials: true },
+       cors: { origin: corsOrigin, credentials: true },
+
   });
 
   io.use((socket, next) => {
@@ -77,4 +80,10 @@ export function initSocket(httpServer: HttpServer): Server {
 export function getIO(): Server {
   if (!io) throw new Error("Socket.IO not initialized");
   return io;
+}
+
+/** Broadcast to a room if sockets are running; a silent no-op otherwise (e.g. when
+ * deployed with sockets disabled) so REST endpoints never fail because of this. */
+export function emitToRoom(room: string, event: string, payload: unknown): void {
+  io?.to(room).emit(event, payload);
 }

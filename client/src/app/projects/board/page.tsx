@@ -17,9 +17,11 @@ import { useUIStore } from "@/lib/stores/ui-store";
 import { useIssuesStore } from "@/lib/stores/issues-store";
 import { useProjectsStore } from "@/lib/stores/projects-store";
 import { useMembersStore } from "@/lib/stores/members-store";
+import { useStatusesStore } from "@/lib/stores/statuses-store";
 import { useProjectStatusColumns } from "@/lib/hooks/use-project-status-columns";
 import { useIssueFilters } from "@/lib/hooks/use-issue-filters";
 import { getStatusColumnId } from "@/lib/board-columns";
+import { PageLoader } from "@/components/ui/spinner";
 
 function ProjectBoardContent() {
   const searchParams = useSearchParams();
@@ -40,6 +42,7 @@ function ProjectBoardContent() {
   const [membersOpen, setMembersOpen] = useState(false);
   const [statusesOpen, setStatusesOpen] = useState(false);
   const columns = useProjectStatusColumns(projectId);
+  const statusesLoaded = useStatusesStore((s) => s.loadedProjectIds.includes(projectId));
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-bg">
@@ -76,7 +79,9 @@ function ProjectBoardContent() {
               <IssueFilterBar filters={filters} issues={issues} members={members} />
             )}
             <div className="relative flex flex-1 overflow-hidden">
-              {issues.length === 0 ? (
+              {!statusesLoaded ? (
+                <PageLoader label="Loading board..." />
+              ) : issues.length === 0 ? (
                 <EmptyState
                   icon={Inbox}
                   title="No issues yet"

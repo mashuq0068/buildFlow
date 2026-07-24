@@ -19,6 +19,7 @@ interface UpdateStatusInput {
 
 interface StatusesState {
   byProject: Record<string, IssueStatusOption[]>;
+  loadedProjectIds: string[];
   fetchStatuses: (projectId: string) => Promise<void>;
   createStatus: (projectId: string, input: CreateStatusInput) => Promise<IssueStatusOption>;
   updateStatus: (
@@ -31,14 +32,20 @@ interface StatusesState {
   reset: () => void;
 }
 
-export const useStatusesStore = create<StatusesState>()((set) => ({
+export const useStatusesStore = create<StatusesState>()((set, get) => ({
   byProject: {},
+  loadedProjectIds: [],
 
   fetchStatuses: async (projectId) => {
     const raw = await api.get<Parameters<typeof mapStatusOption>[0][]>(
       `/projects/${projectId}/statuses`
     );
-    set((state) => ({ byProject: { ...state.byProject, [projectId]: raw.map(mapStatusOption) } }));
+    set((state) => ({
+      byProject: { ...state.byProject, [projectId]: raw.map(mapStatusOption) },
+      loadedProjectIds: get().loadedProjectIds.includes(projectId)
+        ? state.loadedProjectIds
+        : [...state.loadedProjectIds, projectId],
+    }));
   },
 
   createStatus: async (projectId, input) => {
@@ -89,5 +96,5 @@ export const useStatusesStore = create<StatusesState>()((set) => ({
     set((state) => ({ byProject: { ...state.byProject, [projectId]: raw.map(mapStatusOption) } }));
   },
 
-  reset: () => set({ byProject: {} }),
+  reset: () => set({ byProject: {}, loadedProjectIds: [] }),
 }));

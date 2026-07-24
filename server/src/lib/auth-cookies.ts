@@ -8,7 +8,11 @@ function cookieOptions(maxAgeMs: number) {
   return {
     httpOnly: true,
     secure: config.cookieSecure,
-    sameSite: "lax" as const,
+    // Client and server sit on different domains in production (e.g. two separate
+    // Vercel deployments), which browsers treat as cross-site — "lax" silently drops
+    // the cookie on cross-origin fetch/XHR. "none" is required for that to work, but
+    // browsers only honor "none" when secure=true, so keep "lax" for local http dev.
+    sameSite: config.cookieSecure ? ("none" as const) : ("lax" as const),
     maxAge: maxAgeMs,
     path: "/",
   };

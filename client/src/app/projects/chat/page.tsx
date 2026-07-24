@@ -16,6 +16,7 @@ import { useProjectChatStore } from "@/lib/stores/project-chat-store";
 import { useChatReadStore } from "@/lib/stores/chat-read-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { useProjectRoom } from "@/lib/hooks/use-live-room";
+import { PageLoader } from "@/components/ui/spinner";
 
 function ProjectChatContent() {
   const searchParams = useSearchParams();
@@ -24,6 +25,7 @@ function ProjectChatContent() {
   const project = projects.find((p) => p.id === projectId);
 
   const messages = useProjectChatStore((s) => s.messages[projectId]) ?? [];
+  const messagesLoaded = useProjectChatStore((s) => s.loadedProjectIds.includes(projectId));
   const fetchMessages = useProjectChatStore((s) => s.fetchMessages);
   const addMessage = useProjectChatStore((s) => s.addMessage);
   const updateMessage = useProjectChatStore((s) => s.updateMessage);
@@ -77,24 +79,28 @@ function ProjectChatContent() {
         />
 
         <ProjectAccessGuard project={project}>
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="mx-auto max-w-2xl">
-              <DiscussionThread
-                items={messages}
-                currentUserId={currentUser?.id}
-                onSubmit={(body, parentId, attachments) =>
-                  addMessage(projectId, body, parentId, attachments)
-                }
-                onEdit={(messageId, body) => updateMessage(projectId, messageId, body)}
-                onDelete={(messageId) => deleteMessage(projectId, messageId)}
-                onToggleReaction={(messageId, emoji) =>
-                  toggleMessageReaction(projectId, messageId, emoji)
-                }
-                emptyMessage={`No messages yet — say hello to the ${project?.name ?? "project"} team.`}
-                placeholder={`Message #${project?.teamKey.toLowerCase() ?? "project"} — use @ to mention someone`}
-              />
+          {!messagesLoaded ? (
+            <PageLoader label="Loading discussion..." />
+          ) : (
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="mx-auto max-w-2xl">
+                <DiscussionThread
+                  items={messages}
+                  currentUserId={currentUser?.id}
+                  onSubmit={(body, parentId, attachments) =>
+                    addMessage(projectId, body, parentId, attachments)
+                  }
+                  onEdit={(messageId, body) => updateMessage(projectId, messageId, body)}
+                  onDelete={(messageId) => deleteMessage(projectId, messageId)}
+                  onToggleReaction={(messageId, emoji) =>
+                    toggleMessageReaction(projectId, messageId, emoji)
+                  }
+                  emptyMessage={`No messages yet — say hello to the ${project?.name ?? "project"} team.`}
+                  placeholder={`Message #${project?.teamKey.toLowerCase() ?? "project"} — use @ to mention someone`}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </ProjectAccessGuard>
       </div>
       <ManageMembersModal

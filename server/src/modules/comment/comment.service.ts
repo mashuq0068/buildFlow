@@ -5,7 +5,7 @@ import { safeUserSelect } from "../../lib/user-select";
 import { extractMentionedUserIds } from "../../lib/mentions";
 import { aggregateReactions } from "../../lib/reactions";
 import { notificationService } from "../notification/notification.service";
-import { getIO } from "../../lib/socket";
+import { emitToRoom } from "../../lib/socket";
 
 interface AttachmentInput {
   name: string;
@@ -112,7 +112,7 @@ async function createComment(
   }
 
   const result = serialize(comment, userId);
-  getIO().to(`issue:${issueId}`).emit("comment:created", { issueId, comment: result });
+  emitToRoom(`issue:${issueId}`, "comment:created", { issueId, comment: result });
   return result;
 }
 
@@ -136,7 +136,7 @@ async function updateComment(userId: string, commentId: string, body: string) {
     include,
   });
   const result = serialize(comment, userId);
-  getIO().to(`issue:${existing.issueId}`).emit("comment:updated", {
+  emitToRoom(`issue:${existing.issueId}`, "comment:updated", {
     issueId: existing.issueId,
     comment: result,
   });
@@ -157,7 +157,7 @@ async function deleteComment(userId: string, commentId: string) {
   }
 
   await prisma.comment.delete({ where: { id: commentId } });
-  getIO().to(`issue:${existing.issueId}`).emit("comment:deleted", {
+  emitToRoom(`issue:${existing.issueId}`, "comment:deleted", {
     issueId: existing.issueId,
     commentId,
   });
@@ -182,7 +182,7 @@ async function toggleReaction(userId: string, commentId: string, emoji: string) 
 
   const comment = await prisma.comment.findUniqueOrThrow({ where: { id: commentId }, include });
   const result = serialize(comment, userId);
-  getIO().to(`issue:${existing.issueId}`).emit("comment:updated", {
+  emitToRoom(`issue:${existing.issueId}`, "comment:updated", {
     issueId: existing.issueId,
     comment: result,
   });

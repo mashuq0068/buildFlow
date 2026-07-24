@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import Logo from './Logo';
+import { APP_LOGIN_URL } from '@/lib/links';
 
 const links = [
   { label: 'Features', href: '#features' },
@@ -47,11 +48,11 @@ export default function Navbar() {
 
         {/* CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <a href="#" className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors">
+          <a href={APP_LOGIN_URL} className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors">
             Sign in
           </a>
           <a
-            href="#"
+            href={APP_LOGIN_URL}
             className="px-4 py-2 bg-neutral-900 text-white text-sm font-medium rounded-md hover:bg-neutral-800 transition-all duration-200 active:scale-95"
           >
             Start for free
@@ -82,10 +83,10 @@ export default function Navbar() {
             </a>
           ))}
           <div className="pt-3 flex flex-col gap-2">
-            <a href="#" className="block text-center py-2.5 text-sm border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50">
+            <a href={APP_LOGIN_URL} className="block text-center py-2.5 text-sm border border-neutral-200 rounded-md text-neutral-700 hover:bg-neutral-50">
               Sign in
             </a>
-            <a href="#" className="block text-center py-2.5 text-sm bg-neutral-900 text-white rounded-md hover:bg-neutral-800">
+            <a href={APP_LOGIN_URL} className="block text-center py-2.5 text-sm bg-neutral-900 text-white rounded-md hover:bg-neutral-800">
               Start for free
             </a>
           </div>

@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 import { Reveal } from './Reveal';
+import { APP_LOGIN_URL } from '@/lib/links';
 
 export default function FinalCTA() {
   return (
@@ -37,14 +38,14 @@ export default function FinalCTA() {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
-                href="#"
+                href={APP_LOGIN_URL}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 bg-white text-neutral-900 text-sm font-medium rounded-md shadow-[0_8px_30px_rgba(255,255,255,0.15)] hover:shadow-[0_10px_36px_rgba(255,255,255,0.25)] hover:-translate-y-0.5 transition-all active:scale-95"
               >
                 Start for free
                 <ArrowRight className="w-4 h-4" />
               </a>
               <a
-                href="#"
+                href={APP_LOGIN_URL}
                 className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 border border-neutral-700 text-neutral-300 text-sm font-medium rounded-md hover:border-neutral-600 hover:text-white hover:-translate-y-0.5 transition-all active:scale-95"
               >
                 Talk to sales

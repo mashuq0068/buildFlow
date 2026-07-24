@@ -1,5 +1,6 @@
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { Reveal } from './Reveal';
+import { APP_LOGIN_URL } from '@/lib/links';
 
 export default function AIWorkflows() {
   return (
@@ -38,7 +39,7 @@ export default function AIWorkflows() {
             </ul>
 
             <a
-              href="#"
+              href={APP_LOGIN_URL}
               className="mt-8 inline-flex items-center gap-1.5 text-sm font-medium text-neutral-900 hover:gap-2.5 transition-all"
             >
               Explore AI features

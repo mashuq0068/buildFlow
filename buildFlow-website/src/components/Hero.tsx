@@ -1,6 +1,7 @@
 import { ArrowRight } from 'lucide-react';
 import { motion, type Variants } from 'framer-motion';
 import { EASE_OUT } from '@/lib/motion';
+import { APP_LOGIN_URL } from '@/lib/links';
 
 const container: Variants = {
   hidden: {},
@@ -106,14 +107,14 @@ export default function Hero() {
           className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3"
         >
           <a
-            href="#"
+            href={APP_LOGIN_URL}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 bg-neutral-900 text-white text-sm font-medium rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.2)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 transition-all duration-200 active:scale-95"
           >
             Start for free
             <ArrowRight className="w-4 h-4" />
           </a>
           <a
-            href="#"
+            href={APP_LOGIN_URL}
             className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 border border-neutral-200 bg-white text-neutral-700 text-sm font-medium rounded-md hover:border-neutral-300 hover:bg-neutral-50 hover:-translate-y-0.5 transition-all duration-200 active:scale-95"
           >
             Book a demo

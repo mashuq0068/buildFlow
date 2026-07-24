@@ -5,7 +5,7 @@ import { safeUserSelect } from "../../lib/user-select";
 import { extractMentionedUserIds } from "../../lib/mentions";
 import { aggregateReactions } from "../../lib/reactions";
 import { notificationService } from "../notification/notification.service";
-import { getIO } from "../../lib/socket";
+import { emitToRoom } from "../../lib/socket";
 
 interface AttachmentInput {
   name: string;
@@ -115,7 +115,7 @@ async function createMessage(
   }
 
   const result = serialize(message, userId);
-  getIO().to(`project:${projectId}`).emit("chat:created", { projectId, message: result });
+  emitToRoom(`project:${projectId}`, "chat:created", { projectId, message: result });
   return result;
 }
 
@@ -139,7 +139,7 @@ async function updateMessage(userId: string, messageId: string, body: string) {
     include,
   });
   const result = serialize(message, userId);
-  getIO().to(`project:${existing.projectId}`).emit("chat:updated", {
+  emitToRoom(`project:${existing.projectId}`, "chat:updated", {
     projectId: existing.projectId,
     message: result,
   });
@@ -160,7 +160,7 @@ async function deleteMessage(userId: string, messageId: string) {
   }
 
   await prisma.projectChatMessage.delete({ where: { id: messageId } });
-  getIO().to(`project:${existing.projectId}`).emit("chat:deleted", {
+  emitToRoom(`project:${existing.projectId}`, "chat:deleted", {
     projectId: existing.projectId,
     messageId,
   });
@@ -188,7 +188,7 @@ async function toggleReaction(userId: string, messageId: string, emoji: string) 
     include,
   });
   const result = serialize(message, userId);
-  getIO().to(`project:${existing.projectId}`).emit("chat:updated", {
+  emitToRoom(`project:${existing.projectId}`, "chat:updated", {
     projectId: existing.projectId,
     message: result,
   });

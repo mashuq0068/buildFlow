@@ -9,7 +9,9 @@ import { UPLOAD_DIR } from "./modules/upload/upload.service";
 
 const app: Application = express();
 
-app.use(cors({ origin: config.clientOrigin, credentials: true }));
+const corsOrigin = config.clientOrigin.filter((origin): origin is string => Boolean(origin));
+
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 app.use("/uploads", express.static(UPLOAD_DIR));

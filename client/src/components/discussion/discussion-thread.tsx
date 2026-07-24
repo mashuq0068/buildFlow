@@ -163,6 +163,7 @@ function Bubble({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.body);
   const [saving, setSaving] = useState(false);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
 
   async function handleSaveEdit() {
     if (isEmptyHtml(draft)) return;
@@ -193,6 +194,7 @@ function Bubble({
   }
 
   async function handleReact(emoji: string) {
+    setReactionPickerOpen(false);
     try {
       await onToggleReaction(item.id, emoji);
     } catch (err) {
@@ -234,7 +236,7 @@ function Bubble({
           <div
             className={cn(
               "prose-editor rounded-2xl px-3 py-2 text-sm leading-relaxed",
-              isMe ? "rounded-br-sm bg-gray-100 text-black" : "rounded-bl-sm bg-surface-hover text-fg"
+              isMe ? "rounded-br-sm bg-accent/10 text-fg" : "rounded-bl-sm bg-surface-hover text-fg"
             )}
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.body) }}
           />
@@ -287,12 +289,12 @@ function Bubble({
           </div>
         )}
 
-        <div className="flex items-center gap-2 px-1 text-[10px] text-fg-tertiary opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="flex items-center gap-2 px-1 text-[10px] text-fg-tertiary opacity-60 transition-opacity group-hover:opacity-100">
           <span>
             {timeAgo(item.createdAt)}
             {item.editedAt && " · edited"}
           </span>
-          <Popover.Root>
+          <Popover.Root open={reactionPickerOpen} onOpenChange={setReactionPickerOpen}>
             <Popover.Trigger asChild>
               <button type="button" className="hover:text-fg" aria-label="Add reaction">
                 <Smile size={11} />

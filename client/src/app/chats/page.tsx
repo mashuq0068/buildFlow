@@ -13,6 +13,7 @@ import { useProjectChatStore } from "@/lib/stores/project-chat-store";
 import { useChatReadStore } from "@/lib/stores/chat-read-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { stripHtml } from "@/lib/utils";
+import { PageLoader } from "@/components/ui/spinner";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -27,6 +28,8 @@ function timeAgo(iso: string) {
 export default function ChatsPage() {
   const projects = useProjectsStore((s) => s.projects);
   const messagesByProject = useProjectChatStore((s) => s.messages);
+  const loadedProjectIds = useProjectChatStore((s) => s.loadedProjectIds);
+  const allLoaded = projects.every((p) => loadedProjectIds.includes(p.id));
   const lastSeenAt = useChatReadStore((s) => s.lastSeenAt);
   const markSeen = useChatReadStore((s) => s.markSeen);
   const currentUser = useCurrentUser();
@@ -63,7 +66,9 @@ export default function ChatsPage() {
           onSearch={() => setCommandPaletteOpen(true)}
         />
         <main className="flex-1 overflow-y-auto p-4">
-          {rows.length === 0 ? (
+          {!allLoaded ? (
+            <PageLoader label="Loading chats..." />
+          ) : rows.length === 0 ? (
             <EmptyState
               icon={MessageSquare}
               title="No project chats yet"

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Reveal, RevealGroup, RevealItem } from './Reveal';
+import { APP_LOGIN_URL } from '@/lib/links';
 
 const plans = [
   {
@@ -92,7 +93,7 @@ export default function Pricing() {
                 </div>
 
                 <a
-                  href="#"
+                  href={APP_LOGIN_URL}
                   className={`mt-6 block text-center py-2.5 text-sm font-medium rounded-md transition-all active:scale-95 ${
                     plan.highlighted
                       ? 'bg-neutral-900 text-white hover:bg-neutral-800'

@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { api } from "@/lib/api-client";
 import { mapIssue, mapComment, mapActivity, mapDraft, priorityToServer } from "@/lib/api/mappers";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { toggleReactionLocally } from "@/lib/reactions";
 import type { Issue, IssuePriority, Comment, ActivityEntry, Draft } from "@/lib/types";
 import type { UploadedFile } from "@/lib/upload";
 
@@ -139,33 +141,84 @@ export const useIssuesStore = create<IssuesState>()((set, get) => ({
   },
 
   addComment: async (issueId, body, parentId, attachments) => {
-    const raw = await api.post<Parameters<typeof mapComment>[0]>(`/issues/${issueId}/comments`, {
+    const currentUser = useAuthStore.getState().user;
+    if (!currentUser) return;
+
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimistic: Comment = {
+      id: tempId,
+      author: currentUser,
       body,
+      createdAt: new Date().toISOString(),
       parentId,
-      attachments,
-    });
-    get().upsertComment(issueId, mapComment(raw));
+      attachments: (attachments ?? []).map((a, i) => ({ id: `${tempId}-att-${i}`, ...a })),
+      reactions: [],
+    };
+    get().upsertComment(issueId, optimistic);
+
+    try {
+      const raw = await api.post<Parameters<typeof mapComment>[0]>(`/issues/${issueId}/comments`, {
+        body,
+        parentId,
+        attachments,
+      });
+      get().removeComment(issueId, tempId);
+      get().upsertComment(issueId, mapComment(raw));
+    } catch (err) {
+      get().removeComment(issueId, tempId);
+      throw err;
+    }
   },
 
   updateComment: async (issueId, commentId, body) => {
-    const raw = await api.patch<Parameters<typeof mapComment>[0]>(
-      `/issues/${issueId}/comments/${commentId}`,
-      { body }
-    );
-    get().upsertComment(issueId, mapComment(raw));
+    const previous = (get().comments[issueId] ?? []).find((c) => c.id === commentId);
+    if (!previous) return;
+    get().upsertComment(issueId, { ...previous, body, editedAt: new Date().toISOString() });
+
+    try {
+      const raw = await api.patch<Parameters<typeof mapComment>[0]>(
+        `/issues/${issueId}/comments/${commentId}`,
+        { body }
+      );
+      get().upsertComment(issueId, mapComment(raw));
+    } catch (err) {
+      get().upsertComment(issueId, previous);
+      throw err;
+    }
   },
 
   deleteComment: async (issueId, commentId) => {
-    await api.delete(`/issues/${issueId}/comments/${commentId}`);
+    const previous = (get().comments[issueId] ?? []).find((c) => c.id === commentId);
     get().removeComment(issueId, commentId);
+
+    try {
+      await api.delete(`/issues/${issueId}/comments/${commentId}`);
+    } catch (err) {
+      if (previous) get().upsertComment(issueId, previous);
+      throw err;
+    }
   },
 
   toggleCommentReaction: async (issueId, commentId, emoji) => {
-    const raw = await api.post<Parameters<typeof mapComment>[0]>(
-      `/issues/${issueId}/comments/${commentId}/reactions`,
-      { emoji }
-    );
-    get().upsertComment(issueId, mapComment(raw));
+    const currentUser = useAuthStore.getState().user;
+    const previous = (get().comments[issueId] ?? []).find((c) => c.id === commentId);
+    if (!previous || !currentUser) return;
+
+    get().upsertComment(issueId, {
+      ...previous,
+      reactions: toggleReactionLocally(previous.reactions, emoji, currentUser.id, currentUser.name),
+    });
+
+    try {
+      const raw = await api.post<Parameters<typeof mapComment>[0]>(
+        `/issues/${issueId}/comments/${commentId}/reactions`,
+        { emoji }
+      );
+      get().upsertComment(issueId, mapComment(raw));
+    } catch (err) {
+      get().upsertComment(issueId, previous);
+      throw err;
+    }
   },
 
   upsertComment: (issueId, comment) => {
