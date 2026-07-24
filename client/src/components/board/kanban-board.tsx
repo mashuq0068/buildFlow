@@ -108,8 +108,10 @@ export function KanbanBoard({
     const { active, over } = event;
     const finalColumns = previewColumn;
     setActiveId(null);
-    setPreviewColumn(null);
-    if (!over || !finalColumns) return;
+    if (!over || !finalColumns) {
+      setPreviewColumn(null);
+      return;
+    }
 
     const originalContainer = columns.find((c) =>
       itemsByColumn[c.id]?.includes(active.id as string)
@@ -118,11 +120,25 @@ export function KanbanBoard({
       finalColumns[key].includes(active.id as string)
     );
 
-    if (!originalContainer || !finalContainer) return;
+    if (!originalContainer || !finalContainer) {
+      setPreviewColumn(null);
+      return;
+    }
 
     const movedIssue = issuesById[active.id as string];
-    if (!movedIssue) return;
+    if (!movedIssue) {
+      setPreviewColumn(null);
+      return;
+    }
 
+    // Keep rendering the drag-preview position (previewColumn) until the async work
+    // below actually settles, instead of clearing it immediately on drop. Some paths
+    // here (resolveDropStatusId, then moveIssue, then reorderWithinStatus) chain
+    // several awaits before the store reflects the drop — clearing the preview early
+    // would fall back to the real (still-stale) data and flicker the card back to its
+    // old column for that whole window. By the time we clear it in `finally`, the
+    // store has already been updated (moveIssue applies its change optimistically),
+    // so there's nothing for it to flicker back to.
     try {
       if (originalContainer !== finalContainer) {
         if (resolveDropStatusId) {
@@ -159,6 +175,8 @@ export function KanbanBoard({
       }
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to update the board");
+    } finally {
+      setPreviewColumn(null);
     }
   }
 
